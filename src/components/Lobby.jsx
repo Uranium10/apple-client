@@ -8,7 +8,7 @@ const Lobby = ({ serverUrl, clientName, setClientName, onCreateRoom, onJoinRoom 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [tempName, setTempName] = useState(clientName);
   const [joinRoomId, setJoinRoomId] = useState('');
-  
+
   const ws = useRef(null);
   const clientId = useRef(Math.random().toString(36).substr(2, 9));
   const chatEndRef = useRef(null);
@@ -21,7 +21,9 @@ const Lobby = ({ serverUrl, clientName, setClientName, onCreateRoom, onJoinRoom 
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'lobby-chat') {
-        setMessages(prev => [...prev, data]);
+        if (data.senderId !== clientId.current) {
+          setMessages(prev => [...prev, data]);
+        }
       } else if (data.type === 'room-info') {
         setOnlineUsers(data.players);
       } else if (data.type === 'player-joined') {
@@ -51,10 +53,10 @@ const Lobby = ({ serverUrl, clientName, setClientName, onCreateRoom, onJoinRoom 
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!chatInput.trim() || !ws.current) return;
-    
+
     const msg = { type: 'lobby-chat', text: chatInput };
     ws.current.send(JSON.stringify(msg));
-    
+
     // 낙관적 업데이트 (내 채팅 바로 띄우기)
     setMessages(prev => [...prev, { type: 'lobby-chat', senderId: clientId.current, senderName: clientName, text: chatInput }]);
     setChatInput('');
@@ -73,7 +75,7 @@ const Lobby = ({ serverUrl, clientName, setClientName, onCreateRoom, onJoinRoom 
   const handleJoin = () => {
     let code = joinRoomId.trim();
     if (!code) return;
-    
+
     try {
       if (code.includes('http://') || code.includes('https://')) {
         const url = new URL(code);
@@ -86,7 +88,7 @@ const Lobby = ({ serverUrl, clientName, setClientName, onCreateRoom, onJoinRoom 
     } catch (e) {
       // Ignore parsing errors
     }
-    
+
     onJoinRoom(code);
   };
 
@@ -94,9 +96,9 @@ const Lobby = ({ serverUrl, clientName, setClientName, onCreateRoom, onJoinRoom 
     <div className="lobby-container">
       <div className="lobby-box">
         <div className="lobby-header">
-          <h1>사과게임 대기실</h1>
+          <h1>🍎다같이 사과게임</h1>
         </div>
-        
+
         <div className="lobby-main">
           <div className="chat-section">
             <div className="chat-messages">
@@ -115,10 +117,10 @@ const Lobby = ({ serverUrl, clientName, setClientName, onCreateRoom, onJoinRoom 
               <div ref={chatEndRef} />
             </div>
             <form className="chat-input-area" onSubmit={handleSendMessage}>
-              <input 
-                type="text" 
-                placeholder="메시지를 입력하세요..." 
-                value={chatInput} 
+              <input
+                type="text"
+                placeholder="메시지를 입력하세요..."
+                value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
               />
               <button type="submit">전송</button>
@@ -135,13 +137,13 @@ const Lobby = ({ serverUrl, clientName, setClientName, onCreateRoom, onJoinRoom 
                 ))}
               </ul>
             </div>
-            
+
             <div className="profile-section">
               {isEditingProfile ? (
                 <div className="profile-edit">
-                  <input 
-                    type="text" 
-                    value={tempName} 
+                  <input
+                    type="text"
+                    value={tempName}
                     onChange={e => setTempName(e.target.value)}
                     maxLength={10}
                   />
@@ -161,10 +163,10 @@ const Lobby = ({ serverUrl, clientName, setClientName, onCreateRoom, onJoinRoom 
           <div className="room-actions">
             <button className="create-btn" onClick={onCreateRoom}>+ 방 만들기</button>
             <div className="join-action">
-              <input 
-                type="text" 
-                placeholder="방 코드 또는 링크 입력" 
-                value={joinRoomId} 
+              <input
+                type="text"
+                placeholder="방 코드 또는 링크 입력"
+                value={joinRoomId}
                 onChange={e => setJoinRoomId(e.target.value)}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {

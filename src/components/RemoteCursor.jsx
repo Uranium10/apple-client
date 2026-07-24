@@ -1,11 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
-const RemoteCursor = ({ cursorData, getPlayerColor }) => {
-  if (!cursorData) return null;
+const RemoteCursor = ({ cursorDataRef, getPlayerColor }) => {
+  const [localCursorData, setLocalCursorData] = useState({});
+
+  useEffect(() => {
+    // 50ms interval = 20 fps
+    const interval = setInterval(() => {
+      if (cursorDataRef && cursorDataRef.current) {
+        setLocalCursorData({ ...cursorDataRef.current });
+      }
+    }, 50);
+    return () => clearInterval(interval);
+  }, [cursorDataRef]);
+
+  if (!localCursorData) return null;
 
   return (
     <>
-      {Object.entries(cursorData).map(([peerId, data]) => {
+      {Object.entries(localCursorData).map(([peerId, data]) => {
         const { x, y, isDragging, rect } = data;
         const color = getPlayerColor ? getPlayerColor(peerId) : 'red';
         

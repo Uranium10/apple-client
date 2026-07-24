@@ -8,8 +8,6 @@ const GameOverModal = ({ score, isHost, timeLeft, votes, playersCount, onVote, o
   return (
     <div className="modal-overlay">
       <div className="apple-score-container">
-        <div className="apple-stem"></div>
-        <div className="apple-leaf"></div>
         <div className="apple-body">
           <div className="score-text">최종 점수</div>
           <div className="score-number">{score}</div>
@@ -31,7 +29,15 @@ const GameOverModal = ({ score, isHost, timeLeft, votes, playersCount, onVote, o
           </div>
           
           {myVote ? (
-            <div style={{ color: 'white', fontWeight: 'bold' }}>
+            <div style={{ 
+              backgroundColor: 'rgba(0, 0, 0, 0.6)', 
+              padding: '12px 20px', 
+              borderRadius: '20px',
+              color: 'white', 
+              fontWeight: 'bold',
+              display: 'inline-block',
+              alignSelf: 'center'
+            }}>
               <div>나의 선택: {myVote === 'PLAY_AGAIN' ? '다시 하기' : '대기실로'}</div>
               <div style={{ marginTop: '5px' }}>
                 다른 플레이어들의 결정을 기다리는 중... ({votedCount}/{playersCount} 완료)
@@ -42,7 +48,7 @@ const GameOverModal = ({ score, isHost, timeLeft, votes, playersCount, onVote, o
               <button className="green-button" onClick={() => onVote('PLAY_AGAIN')}>
                 다시 하기
               </button>
-              <button className="green-button" style={{ backgroundColor: '#1e90ff' }} onClick={() => onVote('TO_LOBBY')}>
+              <button className="green-button" style={{ backgroundColor: '#fd7e14' }} onClick={() => onVote('TO_LOBBY')}>
                 대기실로
               </button>
               <button className="green-button" style={{ backgroundColor: '#dc3545' }} onClick={onLeave}>

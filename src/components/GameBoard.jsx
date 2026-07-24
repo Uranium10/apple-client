@@ -1,15 +1,32 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import './GameBoard.css';
 import PhysicsApples from './PhysicsApples';
 import RemoteCursor from './RemoteCursor';
 
-const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, score, timeRemaining, totalTime, myColor = 'red', isSpectator = false, cursorData = {}, getPlayerColor }) => {
+const Apple = memo(({ id, number, removed, isSelected, myColor }) => (
+  <div
+    data-id={id}
+    data-number={number}
+    className={`apple ${removed ? 'removed' : ''} ${isSelected ? 'selected' : ''}`}
+    style={isSelected ? {
+      boxShadow: `0 0 10px ${myColor}, inset 0 0 10px ${myColor}`,
+      transform: 'scale(0.9)',
+      borderColor: myColor,
+      backgroundColor: `${myColor}33`
+    } : undefined}
+  >
+    {number}
+  </div>
+));
+
+const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, score, timeRemaining, totalTime, myColor = 'red', isSpectator = false, cursorDataRef, getPlayerColor }) => {
   const [localBoard, setLocalBoard] = useState(board);
   const [isDragging, setIsDragging] = useState(false);
   const [selectionRect, setSelectionRect] = useState(null);
   const [currentSelection, setCurrentSelection] = useState([]);
   const [newParticles, setNewParticles] = useState([]);
   const [boardScale, setBoardScale] = useState(1);
+  const [isPortrait, setIsPortrait] = useState(false);
   
   const boardRef = useRef(null);
   const innerScreenRef = useRef(null);
@@ -29,36 +46,48 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     }
 
     const remoteRemovedParticles = [];
-    board.forEach(remoteApple => {
-      if (remoteApple.removed && !poppedApplesRef.current.has(remoteApple.id)) {
+    const newRemovedApples = board.filter(remoteApple => remoteApple.removed && !poppedApplesRef.current.has(remoteApple.id));
+    
+    if (newRemovedApples.length > 0) {
+      const cols = size.width || size.cols;
+      newRemovedApples.forEach(remoteApple => {
         poppedApplesRef.current.add(remoteApple.id);
-        const el = document.querySelector(`.apple[data-id='${remoteApple.id}']`);
-        const screenEl = innerScreenRef.current;
-        const screenRect = screenEl ? screenEl.getBoundingClientRect() : { left: 0, top: 0 };
-        const rect = el ? el.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2 };
+        
+        const col = remoteApple.id % cols;
+        const row = Math.floor(remoteApple.id / cols);
+        // Position relative to game-board (unscaled)
+        const startX = col * 40 + 20;
+        const startY = row * 40 + 20;
+
         const angle = Math.random() * (340 - 200) * (Math.PI / 180) + 200 * (Math.PI / 180);
         const velocity = Math.random() * 10 + 15; 
         remoteRemovedParticles.push({
           uid: `${remoteApple.id}-${Date.now()}`,
           number: remoteApple.number,
-          startX: rect.left - screenRect.left,
-          startY: rect.top - screenRect.top,
+          startX: startX,
+          startY: startY,
           vx: Math.cos(angle) * velocity,
           vy: Math.sin(angle) * velocity,
           vr: (Math.random() - 0.5) * 15
         });
-      }
-    });
+      });
+    }
 
     if (remoteRemovedParticles.length > 0) {
       setNewParticles(remoteRemovedParticles);
     }
     
     setLocalBoard(board);
-  }, [board]);
+  }, [board, size]);
 
   useEffect(() => {
     const handleResize = () => {
+      if (window.innerHeight > window.innerWidth * 1.2) {
+        setIsPortrait(true);
+      } else {
+        setIsPortrait(false);
+      }
+      
       if (!innerScreenRef.current) return;
       const cols = size.width || size.cols;
       const rows = size.height || size.rows;
@@ -82,11 +111,11 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
   const handleMouseDown = (e) => {
     if (isGameOver || isSpectator) return;
     setIsDragging(true);
-    const rect = boardRef.current.getBoundingClientRect();
+    
+    const boardRect = boardRef.current.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
     
-    const boardRect = boardRef.current.getBoundingClientRect();
     const relX = (x - boardRect.left) / boardScale;
     const relY = (y - boardRect.top) / boardScale;
     
@@ -95,7 +124,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     setSelectionRect({ startX: x, startY: y, endX: x, endY: y });
     
     // Cache positions for smooth selection checking during mousemove
-    const apples = Array.from(boardRef.current.children);
+    const apples = Array.from(boardRef.current.children).filter(child => child.classList.contains('apple'));
     applePositions.current = apples.map(apple => {
       const bRect = apple.getBoundingClientRect();
       return {
@@ -115,7 +144,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
   const handleMouseMove = (e) => {
     if (isGameOver) return;
     
-    if (sendCursorData) {
+    if (sendCursorData && boardRef.current) {
       const boardRect = boardRef.current.getBoundingClientRect();
       const relX = (e.clientX - boardRect.left) / boardScale;
       const relY = (e.clientY - boardRect.top) / boardScale;
@@ -163,7 +192,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     if (!isDragging || isGameOver) return;
     setIsDragging(false);
     
-    if (sendCursorData) {
+    if (sendCursorData && boardRef.current) {
       const boardRect = boardRef.current.getBoundingClientRect();
       const relX = (e.clientX - boardRect.left) / boardScale;
       const relY = (e.clientY - boardRect.top) / boardScale;
@@ -180,21 +209,26 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     if (sum === 10) {
       // Valid selection
       const removedParticles = [];
-      const screenEl = innerScreenRef.current;
-      const screenRect = screenEl ? screenEl.getBoundingClientRect() : { left: 0, top: 0 };
+      const cols = size.width || size.cols;
+
       const newBoard = localBoard.map(apple => {
         if (currentSelection.includes(apple.id)) {
           if (!poppedApplesRef.current.has(apple.id)) {
             poppedApplesRef.current.add(apple.id);
-            const el = document.querySelector(`.apple[data-id='${apple.id}']`);
-            const rect = el ? el.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2 };
+            
+            const col = apple.id % cols;
+            const row = Math.floor(apple.id / cols);
+            // Position relative to game-board (unscaled)
+            const startX = col * 40 + 20;
+            const startY = row * 40 + 20;
+
             const angle = Math.random() * (340 - 200) * (Math.PI / 180) + 200 * (Math.PI / 180);
             const velocity = Math.random() * 10 + 15; 
             removedParticles.push({
               uid: `${apple.id}-${Date.now()}`,
               number: apple.number,
-              startX: rect.left - screenRect.left,
-              startY: rect.top - screenRect.top,
+              startX: startX,
+              startY: startY,
               vx: Math.cos(angle) * velocity,
               vy: Math.sin(angle) * velocity,
               vr: (Math.random() - 0.5) * 15
@@ -217,48 +251,67 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
   };
 
   const percentage = Math.max(0, (timeRemaining / totalTime) * 100);
+  const isDanger = timeRemaining <= 10 && timeRemaining > 0;
+  const selectionSet = useMemo(() => new Set(currentSelection), [currentSelection]);
+
+  const cols = size.width || size.cols;
+  const rows = size.height || size.rows;
+  const boardWidth = cols * 40;
+  const boardHeight = rows * 40;
 
   return (
     <div 
-      className="game-inner-screen" 
+      className={`game-inner-screen ${isDanger ? 'danger-mode' : ''}`}
       ref={innerScreenRef}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onPointerDown={(e) => {
+        e.target.setPointerCapture(e.pointerId);
+        handleMouseDown(e);
+      }}
+      onPointerMove={handleMouseMove}
+      onPointerUp={(e) => {
+        try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
+        handleMouseUp(e);
+      }}
+      onPointerCancel={(e) => {
+        try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
+        handleMouseUp(e);
+      }}
     >
+      {isPortrait && (
+        <div className="portrait-warning">
+          <div className="portrait-warning-content">
+            <span style={{ fontSize: '40px' }}>🔄</span>
+            <h2>기기를 가로로 회전해주세요!</h2>
+            <p>더 쾌적한 사과게임 플레이를 위해 가로 모드를 권장합니다.</p>
+          </div>
+        </div>
+      )}
       <div className="game-board-container">
-        <div 
-          className="game-board" 
-          ref={boardRef}
-          style={{
-            gridTemplateColumns: `repeat(${size.width || size.cols}, 40px)`,
-            transform: `scale(${boardScale})`,
-            transformOrigin: 'center center'
-          }}
-        >
-          {localBoard.map(apple => {
-            const isSelected = currentSelection.includes(apple.id);
-            return (
-              <div
+        <div style={{ width: boardWidth * boardScale, height: boardHeight * boardScale }}>
+          <div 
+            className="game-board" 
+            ref={boardRef}
+            style={{
+              gridTemplateColumns: `repeat(${cols}, 40px)`,
+              transform: `scale(${boardScale})`,
+              transformOrigin: 'top left',
+              position: 'relative'
+            }}
+          >
+            {localBoard.map(apple => (
+              <Apple
                 key={apple.id}
-                data-id={apple.id}
-                data-number={apple.number}
-                className={`apple ${apple.removed ? 'removed' : ''} ${isSelected ? 'selected' : ''}`}
-                style={{
-                  boxShadow: isSelected ? `0 0 10px ${myColor}, inset 0 0 10px ${myColor}` : 'none',
-                  transform: isSelected ? 'scale(0.9)' : 'scale(1)',
-                  transition: 'all 0.1s ease-in-out',
-                  borderColor: isSelected ? myColor : 'transparent',
-                  backgroundColor: isSelected ? `${myColor}33` : undefined
-                }}
-              >
-                {apple.number}
-              </div>
-            );
-          })}
-          
-          <RemoteCursor cursorData={cursorData} getPlayerColor={getPlayerColor} />
+                id={apple.id}
+                number={apple.number}
+                removed={apple.removed}
+                isSelected={selectionSet.has(apple.id)}
+                myColor={myColor}
+              />
+            ))}
+            
+            <RemoteCursor cursorDataRef={cursorDataRef} getPlayerColor={getPlayerColor} />
+            <PhysicsApples newParticles={newParticles} />
+          </div>
         </div>
         
         {isDragging && selectionRect && !isSpectator && (
@@ -275,14 +328,12 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
           />
         )}
       </div>
-
       <div className="side-panel">
         <div className="score-display">{score}</div>
         <div className="timer-track">
           <div className="timer-fill" style={{ height: `${percentage}%` }}></div>
         </div>
       </div>
-      <PhysicsApples newParticles={newParticles} />
     </div>
   );
 };

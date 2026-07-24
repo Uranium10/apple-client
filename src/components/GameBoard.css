@@ -1,20 +1,24 @@
 .game-inner-screen {
-  background-color: #f0f7e6;
-  background-image: 
-    linear-gradient(45deg, #e4eed7 25%, transparent 25%, transparent 75%, #e4eed7 75%, #e4eed7),
-    linear-gradient(45deg, #e4eed7 25%, transparent 25%, transparent 75%, #e4eed7 75%, #e4eed7);
-  background-size: 20px 20px;
-  background-position: 0 0, 10px 10px;
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   border-radius: 15px;
   position: relative;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
-  padding: 20px;
   overflow: hidden;
+  background-color: #f0f7e6;
+  transition: all 0.3s ease;
+  touch-action: none;
+}
+
+.dark-mode .game-inner-screen {
+  background-color: #1a1a1a;
+  border: 2px solid #7f8c8d;
+}
+
+.dark-mode .game-board-container {
+  background-image: none;
+  background-color: #2a2a2a;
 }
 
 .game-board-container {
@@ -25,6 +29,14 @@
   position: relative;
   user-select: none;
   flex: 1;
+  min-width: max-content;
+  min-height: max-content;
+  background-image: 
+    linear-gradient(45deg, #e4eed7 25%, transparent 25%, transparent 75%, #e4eed7 75%, #e4eed7),
+    linear-gradient(45deg, #e4eed7 25%, transparent 25%, transparent 75%, #e4eed7 75%, #e4eed7);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+  padding: 40px;
 }
 
 .game-board {
@@ -118,6 +130,7 @@
   position: relative;
   display: flex;
   align-items: flex-end;
+  margin-bottom: 20px;
 }
 
 .timer-fill {
@@ -126,4 +139,38 @@
   transition: height 1s linear;
   box-shadow: 0 0 5px #00ff00;
   border-radius: 2px;
+}
+
+.danger-mode {
+  animation: dangerPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes dangerPulse {
+  0% { box-shadow: inset 0 0 0px rgba(231, 76, 60, 0); }
+  50% { box-shadow: inset 0 0 50px rgba(231, 76, 60, 0.8); }
+  100% { box-shadow: inset 0 0 0px rgba(231, 76, 60, 0); }
+}
+
+.portrait-warning {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(44, 62, 80, 0.95);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: white;
+}
+
+.portrait-warning-content {
+  padding: 30px;
+  border-radius: 15px;
+  background-color: #34495e;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.portrait-warning h2 {
+  color: #f1c40f;
+  margin-top: 15px;
 }

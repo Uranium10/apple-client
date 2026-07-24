@@ -10,6 +10,11 @@
   align-items: center;
   z-index: 10000;
   border-radius: 10px;
+  transition: background-color 0.3s ease;
+}
+
+.dark-mode .modal-overlay {
+  background-color: rgba(0, 0, 0, 0.6);
 }
 
 .apple-score-container {
@@ -19,56 +24,21 @@
   position: relative;
 }
 
-/* Giant apple drawn with CSS */
+/* Giant apple using real image */
 .apple-body {
   width: 250px;
-  height: 230px;
-  background: radial-gradient(circle at 40% 30%, #ff5e4d, #ff1a00);
-  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-  box-shadow: inset -10px -10px 20px rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.3);
+  height: 250px;
+  background-image: url('/apple.png');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   position: relative;
   z-index: 2;
-  border: 2px solid #ff4d4d;
-}
-
-.apple-body::before {
-  content: '';
-  position: absolute;
-  top: -15px;
-  width: 80px;
-  height: 30px;
-  background-color: transparent;
-  border-radius: 50%;
-  box-shadow: 0 15px 0 0 #ff5e4d;
-  z-index: -1;
-}
-
-.apple-stem {
-  position: absolute;
-  top: -20px;
-  left: 120px;
-  width: 10px;
-  height: 40px;
-  background-color: #5c3a21;
-  border-radius: 5px;
-  transform: rotate(15deg);
-  z-index: 1;
-}
-
-.apple-leaf {
-  position: absolute;
-  top: -15px;
-  left: 130px;
-  width: 40px;
-  height: 20px;
-  background-color: #32cd32;
-  border-radius: 50% 0 50% 0;
-  transform: rotate(-10deg);
-  z-index: 3;
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
 }
 
 .score-text {

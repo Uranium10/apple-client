@@ -8,35 +8,52 @@ import './Room.css';
 
 const GAME_DURATION = 120;
 
-const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave }) => {
+const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerUrl, onLeave }) => {
   const [isHost, setIsHost] = useState(initialIsHost);
   const [hostId, setHostId] = useState(null);
   const [players, setPlayers] = useState([]); // [{id, name, isReady}]
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
-  
+
   const [gameStarted, setGameStarted] = useState(false);
   const [boardData, setBoardData] = useState(null);
-  const [cursorData, setCursorData] = useState({});
+  const cursorDataRef = useRef({});
   const [score, setScore] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(GAME_DURATION);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('apple_dark_mode') === 'true';
+  });
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [gameOverVotes, setGameOverVotes] = useState({});
   const [gameOverTimeLeft, setGameOverTimeLeft] = useState(10);
   const [isSpectator, setIsSpectator] = useState(false);
+  const [startCountdown, setStartCountdown] = useState(null);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const chatEndRef = useRef(null);
 
   // Refs for WebRTC callbacks to avoid stale closures
   const isHostRef = useRef(isHost);
   const boardDataRef = useRef(boardData);
+  const playersRef = useRef(players);
+  const scoreRef = useRef(score);
 
   useEffect(() => { isHostRef.current = isHost; }, [isHost]);
   useEffect(() => { boardDataRef.current = boardData; }, [boardData]);
+  useEffect(() => { playersRef.current = players; }, [players]);
+  useEffect(() => { scoreRef.current = score; }, [score]);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   const COLORS = ['#ff4757', '#1e90ff', '#2ed573', '#ffa502', '#3742fa', '#ff6b81'];
-  
+
   const getPlayerColor = (playerId) => {
     const index = players.findIndex(p => p.id === playerId);
     return index !== -1 ? COLORS[index % COLORS.length] : 'red';
@@ -49,21 +66,34 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
   // Timer logic that works in background tabs
   useEffect(() => {
     if (!gameStarted || isGameOver) return;
-    
+
     const startTimestamp = Date.now();
     const initialTime = timeRemaining;
-    
-    const timer = setInterval(() => {
+
+    const workerCode = `
+      let interval;
+      self.onmessage = function(e) {
+        if (e.data === 'start') {
+          interval = setInterval(() => { self.postMessage('tick'); }, 1000);
+        } else if (e.data === 'stop') {
+          clearInterval(interval);
+        }
+      };
+    `;
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const worker = new Worker(URL.createObjectURL(blob));
+
+    worker.onmessage = () => {
       const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
       const newRemaining = Math.max(0, initialTime - elapsed);
       setTimeRemaining(newRemaining);
-      
+
       if (isHostRef.current && webrtcRef.current) {
         webrtcRef.current.broadcast({ type: 'TIME_UPDATE', timeRemaining: newRemaining });
       }
-      
+
       if (newRemaining <= 0) {
-        clearInterval(timer);
+        worker.postMessage('stop');
         // Host triggers game over for everyone
         if (isHostRef.current) {
           setIsGameOver(true);
@@ -72,22 +102,42 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
           if (webrtcRef.current) {
             webrtcRef.current.broadcast({ type: 'GAME_OVER' });
           }
+
+          const playerNames = playersRef.current.map(p => p.name);
+          fetch(`${apiServerUrl || serverUrl.replace('ws://', 'http://').replace('wss://', 'https://')}/api/leaderboard`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              playerCount: playersRef.current.length,
+              playerNames: playerNames,
+              score: scoreRef.current
+            })
+          }).catch(console.error);
         }
       }
-    }, 1000);
-    
-    return () => clearInterval(timer);
+    };
+
+    worker.postMessage('start');
+
+    return () => {
+      worker.postMessage('stop');
+      worker.terminate();
+    };
   }, [gameStarted, isGameOver]); // Do not add timeRemaining to deps
 
   // Local Game Over Timer
   useEffect(() => {
     if (isGameOver) {
-      gameOverTimerRef.current = setInterval(() => {
-        setGameOverTimeLeft(prev => Math.max(0, prev - 1));
-      }, 1000);
+      if (players.length > 1) {
+        gameOverTimerRef.current = setInterval(() => {
+          setGameOverTimeLeft(prev => Math.max(0, prev - 1));
+        }, 1000);
+      } else {
+        setGameOverTimeLeft(10);
+      }
     }
     return () => clearInterval(gameOverTimerRef.current);
-  }, [isGameOver]);
+  }, [isGameOver, players.length]);
 
   // Check Vote Results on Host
   useEffect(() => {
@@ -96,7 +146,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
       // All remaining players voted OR time is up
       if (totalVotes >= players.length || gameOverTimeLeft === 0) {
         clearInterval(gameOverTimerRef.current);
-        
+
         let playAgain = 0;
         let toLobby = 0;
         Object.values(gameOverVotes).forEach(v => {
@@ -104,11 +154,12 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
           if (v === 'TO_LOBBY') toLobby++;
         });
 
-        if (playAgain >= toLobby) {
+        if (playAgain > toLobby || (playAgain === toLobby && playAgain > 0)) {
           startGame();
         } else {
           setGameStarted(false);
           setIsGameOver(false);
+          setPlayers(prev => prev.map(p => ({ ...p, isReady: p.id === hostId })));
           if (webrtcRef.current) {
             webrtcRef.current.broadcast({ type: 'RETURN_TO_LOBBY' });
           }
@@ -164,7 +215,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
   const handlePlayerJoined = useCallback((peerId, peerName) => {
     setPlayers(prev => [...prev, { id: peerId, name: peerName, isReady: false }]);
     setMessages(prev => [...prev, { type: 'system', text: `${peerName}님이 방에 입장했습니다.` }]);
-    
+
     // If game has already started, host needs to sync state to the new player
     if (isHost && gameStarted && boardData) {
       setTimeout(() => {
@@ -182,6 +233,10 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
   }, [isHost, gameStarted, boardData, timeRemaining, score]);
 
   const handlePlayerLeft = useCallback((peerId, newHostId) => {
+    if (cursorDataRef.current && cursorDataRef.current[peerId]) {
+      delete cursorDataRef.current[peerId];
+    }
+    
     setPlayers(prev => {
       const leftPlayer = prev.find(p => p.id === peerId);
       if (leftPlayer) {
@@ -200,7 +255,18 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
       });
       if (newHostId === webrtcRef.current?.clientId) {
         setIsHost(true);
+        setPlayers(prev => prev.map(p => p.id === newHostId ? { ...p, isReady: true } : p));
         setMessages(m => [...m, { type: 'system', text: `당신이 새로운 방장이 되었습니다.` }]);
+        
+        setIsStarting(prev => {
+          if (prev) {
+            webrtcRef.current.broadcast({ type: 'CANCEL_COUNTDOWN' });
+            setStartCountdown(null);
+            setMessages(m => [...m, { type: 'system', text: `방장 변경으로 게임 시작이 취소되었습니다.` }]);
+            return false;
+          }
+          return prev;
+        });
       }
     }
 
@@ -245,7 +311,12 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
         break;
       case 'START_COUNTDOWN':
         setIsStarting(true);
-        setIsGameOver(false);
+        setStartCountdown(data.count);
+        break;
+      case 'CANCEL_COUNTDOWN':
+        setIsStarting(false);
+        setStartCountdown(null);
+        setMessages(prev => [...prev, { type: 'system', text: '방장 변경으로 게임 시작이 취소되었습니다.' }]);
         break;
       case 'GAME_START':
         setGameStarted(true);
@@ -254,6 +325,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
         setTimeRemaining(GAME_DURATION);
         setIsGameOver(false);
         setIsStarting(false);
+        setStartCountdown(null);
         setIsSpectator(false);
         break;
       case 'BOARD_SYNC':
@@ -268,20 +340,17 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
         }
         break;
       case 'CURSOR_MOVE':
-        setCursorData(prev => ({
-          ...prev,
-          [peerId]: data.cursor
-        }));
+        cursorDataRef.current[peerId] = data.cursor;
         break;
       case 'REQUEST_REMOVE':
         if (isHostRef.current && boardDataRef.current) {
           // Force apply removal to prevent sync desyncs
-          const newBoard = boardDataRef.current.board.map(apple => 
+          const newBoard = boardDataRef.current.board.map(apple =>
             data.removedIds.includes(apple.id) ? { ...apple, removed: true } : apple
           );
           setBoardData(prev => ({ ...prev, board: newBoard }));
           setScore(prev => prev + data.points);
-          
+
           webrtcRef.current.broadcast({
             type: 'APPLES_REMOVED',
             removedIds: data.removedIds,
@@ -326,6 +395,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
       case 'RETURN_TO_LOBBY':
         setGameStarted(false);
         setIsGameOver(false);
+        setPlayers(prev => prev.map(p => ({ ...p, isReady: p.id === hostId })));
         break;
       default:
         break;
@@ -335,7 +405,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!chatInput.trim() || !webrtcRef.current) return;
-    
+
     webrtcRef.current.broadcast({ type: 'ROOM_CHAT', senderName: clientName, text: chatInput });
     setMessages(prev => [...prev, { type: 'chat', senderName: clientName, text: chatInput, isMe: true }]);
     setChatInput('');
@@ -352,20 +422,24 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
     if (!isHost || isStarting) return;
     setIsStarting(true);
     setIsGameOver(false);
-    if (webrtcRef.current) {
-      webrtcRef.current.broadcast({ type: 'START_COUNTDOWN' });
-    }
-    
-    const initialMsg = '3초 뒤 게임이 시작됩니다!';
-    setMessages(prev => [...prev, { type: 'system', text: initialMsg }]);
-    webrtcRef.current.broadcast({ type: 'SYSTEM_MSG', text: initialMsg });
 
     let count = 3;
+
+    const initialMsg = '3초 뒤 게임이 시작됩니다!';
+    setMessages(prev => [...prev, { type: 'system', text: initialMsg }]);
+    if (webrtcRef.current) {
+      webrtcRef.current.broadcast({ type: 'SYSTEM_MSG', text: initialMsg });
+    }
+
     const tick = () => {
       if (count > 0) {
         const msg = `${count}...`;
         setMessages(prev => [...prev, { type: 'system', text: msg }]);
-        webrtcRef.current.broadcast({ type: 'SYSTEM_MSG', text: msg });
+        setStartCountdown(count);
+        if (webrtcRef.current) {
+          webrtcRef.current.broadcast({ type: 'SYSTEM_MSG', text: msg });
+          webrtcRef.current.broadcast({ type: 'START_COUNTDOWN', count });
+        }
         count--;
         setTimeout(tick, 1000);
       } else {
@@ -376,17 +450,18 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
         setTimeRemaining(GAME_DURATION);
         setIsGameOver(false);
         setIsStarting(false);
-        
+        setStartCountdown(null);
+
         webrtcRef.current.broadcast({ type: 'GAME_START', boardData: data });
       }
     };
-    
-    setTimeout(tick, 1000);
+
+    tick();
   };
 
   const handleApplesRemoved = (removedIds, points) => {
     if (isHost) {
-      const newBoard = boardData.board.map(apple => 
+      const newBoard = boardData.board.map(apple =>
         removedIds.includes(apple.id) ? { ...apple, removed: true } : apple
       );
       setBoardData(prev => ({ ...prev, board: newBoard }));
@@ -424,12 +499,18 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
     setGameStarted(false);
     setIsGameOver(false);
     setIsSpectator(false);
+    setPlayers(prev => prev.map(p => ({ ...p, isReady: p.id === hostId })));
   };
 
   const copyInviteLink = () => {
     const link = `http://${window.location.hostname}:5173/?room=${roomId}`;
+    const triggerCopied = () => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    };
+
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(link).catch(() => {});
+      navigator.clipboard.writeText(link).then(triggerCopied).catch(() => { });
     } else {
       const textArea = document.createElement("textarea");
       textArea.value = link;
@@ -439,6 +520,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
       textArea.select();
       try {
         document.execCommand('copy');
+        triggerCopied();
       } catch (error) {
         console.error(error);
       } finally {
@@ -451,15 +533,41 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
 
   if (gameStarted) {
     return (
-      <div className="game-screen">
-        <header>
-          <h2>방 코드: {roomId}</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <div>참가자: {players.length}명 | {isHost ? '방장' : '게스트'}</div>
+      <div className={`game-screen ${isDarkMode ? 'dark-mode' : ''}`}>
+        <button 
+          className="dark-mode-toggle-btn"
+          onClick={() => {
+            setIsDarkMode(prev => {
+              const next = !prev;
+              localStorage.setItem('apple_dark_mode', next);
+              return next;
+            });
+          }}
+          title="다크 모드"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+
+        <header className="game-header">
+          <div className="game-header-title">
+            <span className="game-title-text">온라인 사과게임</span>
+            <span className="game-room-code">방 코드: {roomId}</span>
+          </div>
+          <div className="game-header-info">
+            <div className="game-status-badge">참가자: {players.length}명 | {isHost ? '방장' : '게스트'}</div>
             {players.length === 1 && (
-              <button 
-                className="leave-btn" 
-                style={{ padding: '4px 10px', fontSize: '14px', borderRadius: '4px' }} 
+              <button
+                className="leave-btn"
                 onClick={returnToWaitingRoom}
               >
                 방 나가기
@@ -467,10 +575,10 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
             )}
           </div>
         </header>
-        
+
         {boardData && (
-          <GameBoard 
-            board={boardData.board} 
+          <GameBoard
+            board={boardData.board}
             size={boardData.size}
             onApplesRemoved={handleApplesRemoved}
             sendCursorData={handleCursorData}
@@ -480,12 +588,14 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
             totalTime={GAME_DURATION}
             myColor={getPlayerColor(webrtcRef.current?.clientId)}
             isSpectator={isSpectator}
+            cursorDataRef={cursorDataRef}
+            getPlayerColor={getPlayerColor}
           />
         )}
 
         {isGameOver && (
-          <GameOverModal 
-            score={score} 
+          <GameOverModal
+            score={score}
             isHost={isHost}
             timeLeft={gameOverTimeLeft}
             votes={gameOverVotes}
@@ -516,7 +626,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
     <div className="room-container">
       <div className="room-box">
         <div className="room-header">
-          <h1>대기실 (방 코드: {roomId})</h1>
+          <h1>🍎 대기실</h1>
           <button className="leave-btn" onClick={onLeave}>방 나가기</button>
         </div>
 
@@ -525,8 +635,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
             <h3>참가자 목록 ({players.length}명)</h3>
             <ul className="players-list">
               {players.map(p => (
-                <li 
-                  key={p.id} 
+                <li
+                  key={p.id}
                   className={`player-item ${p.id === webrtcRef.current?.clientId ? 'me' : ''}`}
                   onClick={() => {
                     if (isHost && p.id !== webrtcRef.current?.clientId) {
@@ -539,17 +649,15 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                       <div className="player-info">
                         <span className="player-name">{p.name}</span>
-                        {p.id === webrtcRef.current?.clientId && <span className="badge me-badge">나</span>}
-                        {p.id === hostId && <span className="badge host-badge">방장</span>}
                       </div>
-                      <div className={`ready-status ${p.isReady ? 'ready' : 'not-ready'}`}>
-                        {p.isReady ? '준비 완료' : '대기 중'}
+                      <div className={`ready-status ${p.id === hostId ? 'host-status' : (p.isReady ? 'ready' : 'not-ready')}`}>
+                        {p.id === hostId ? '👑' : '준비 완료'}
                       </div>
                     </div>
                     {selectedPlayerId === p.id && (
                       <div style={{ marginTop: '10px', textAlign: 'right' }}>
-                        <button 
-                          className="leave-btn" 
+                        <button
+                          className="leave-btn"
                           style={{ padding: '4px 8px', fontSize: '12px' }}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -568,7 +676,21 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
               <p style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '10px' }}>
                 초대 링크: <span style={{ wordBreak: 'break-all' }}>{`http://${window.location.hostname}:5173/?room=${roomId}`}</span>
               </p>
-              <button style={{ flexShrink: 0 }} onClick={copyInviteLink}>복사</button>
+              <button
+                className={`copy-btn ${isCopied ? 'copied' : ''}`}
+                onClick={copyInviteLink}
+                title="복사"
+              >
+                <div className="copy-icon-container">
+                  <svg className={`copy-icon ${isCopied ? 'hidden' : ''}`} viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <svg className={`check-icon ${isCopied ? 'visible' : ''}`} viewBox="0 0 24 24" width="20" height="20" stroke="#00aa00" strokeWidth="3" fill="none">
+                    <path className="check-path" d="M20 6L9 17l-5-5"></path>
+                  </svg>
+                </div>
+              </button>
             </div>
           </div>
 
@@ -586,12 +708,13 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
                   )}
                 </div>
               ))}
+              <div ref={chatEndRef} />
             </div>
             <form className="chat-input-area" onSubmit={handleSendMessage}>
-              <input 
-                type="text" 
-                placeholder="메시지를 입력하세요..." 
-                value={chatInput} 
+              <input
+                type="text"
+                placeholder="메시지를 입력하세요..."
+                value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
               />
               <button type="submit">전송</button>
@@ -601,7 +724,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
 
         <div className="room-footer">
           {isHost ? (
-            <button 
+            <button
               className={`action-btn start-btn ${allReady && !isStarting ? 'ready' : 'disabled'}`}
               onClick={startGame}
               disabled={!allReady || isStarting}
@@ -609,16 +732,22 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave })
               {isStarting ? '시작 중...' : (allReady ? '게임 시작' : '모두 준비해야 시작 가능')}
             </button>
           ) : (
-            <button 
+            <button
               className={`action-btn ready-btn ${players.find(p => p.id === webrtcRef.current?.clientId)?.isReady ? 'is-ready' : ''} ${isStarting ? 'disabled' : ''}`}
               onClick={toggleReady}
               disabled={isStarting}
             >
-              {players.find(p => p.id === webrtcRef.current?.clientId)?.isReady ? '준비 완료' : '준비'}
+              {players.find(p => p.id === webrtcRef.current?.clientId)?.isReady ? '준비 취소' : '준비'}
             </button>
           )}
         </div>
       </div>
+
+      {startCountdown !== null && (
+        <div className="giant-countdown-overlay">
+          <div className="giant-countdown-text">{startCountdown}</div>
+        </div>
+      )}
     </div>
   );
 };
