@@ -435,6 +435,18 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     setIsStarting(true);
     setIsGameOver(false);
 
+    // Skip countdown if playing alone
+    if (players.length === 1) {
+      const data = generateBoard(1);
+      setBoardData(data);
+      setScore(0);
+      setTimeRemaining(GAME_DURATION);
+      setGameStarted(true);
+      setIsStarting(false);
+      setStartCountdown(null);
+      return;
+    }
+
     let count = 3;
 
     // Generate new board immediately for preview
