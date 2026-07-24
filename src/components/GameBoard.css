@@ -94,6 +94,50 @@
   pointer-events: none;
 }
 
+.sum-tooltip {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 1000;
+  transform: translate(-50%, -100%);
+  margin-top: -10px;
+  white-space: nowrap;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.sum-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
+}
+
+/* Mobile Landscape Fullscreen Optimization */
+@media screen and (max-height: 600px) and (max-width: 950px) and (orientation: landscape) {
+  .game-inner-screen {
+    border-radius: 0 !important;
+    border: none !important;
+  }
+  
+  .game-board-container {
+    padding: 10px !important;
+  }
+  
+  /* Make apples scale better to fill the height */
+  .game-board {
+    transform-origin: center center;
+  }
+}
+
 .selection-box {
   position: fixed;
   background-color: rgba(135, 206, 235, 0.4);

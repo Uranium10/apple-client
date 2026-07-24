@@ -87,8 +87,12 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
       const boardWidth = cols * 40;
       const boardHeight = rows * 40;
       
-      const availableWidth = innerScreenRef.current.clientWidth - 100; // side-panel and padding
-      const availableHeight = innerScreenRef.current.clientHeight - 60; // padding
+      const isMobileLandscape = window.innerHeight <= 600 && window.innerWidth <= 950 && window.innerWidth > window.innerHeight;
+      const widthPadding = isMobileLandscape ? 20 : 100;
+      const heightPadding = isMobileLandscape ? 20 : 60;
+      
+      const availableWidth = innerScreenRef.current.clientWidth - widthPadding;
+      const availableHeight = innerScreenRef.current.clientHeight - heightPadding;
       
       const scaleX = availableWidth / boardWidth;
       const scaleY = availableHeight / boardHeight;
