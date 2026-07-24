@@ -634,6 +634,12 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
             </div>
           </div>
         )}
+
+        {startCountdown !== null && (
+          <div className="giant-countdown-overlay">
+            <div className="giant-countdown-text">{startCountdown}</div>
+          </div>
+        )}
       </div>
     );
   }
