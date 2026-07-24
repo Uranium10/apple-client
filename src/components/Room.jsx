@@ -503,7 +503,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   };
 
   const copyInviteLink = () => {
-    const link = `http://${window.location.hostname}:5173/?room=${roomId}`;
+    const link = `${window.location.origin}/?room=${roomId}`;
     const triggerCopied = () => {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
@@ -674,7 +674,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
             </ul>
             <div className="invite-section">
               <p style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '10px' }}>
-                초대 링크: <span style={{ wordBreak: 'break-all' }}>{`http://${window.location.hostname}:5173/?room=${roomId}`}</span>
+                초대 링크: <span style={{ wordBreak: 'break-all' }}>{`${window.location.origin}/?room=${roomId}`}</span>
               </p>
               <button
                 className={`copy-btn ${isCopied ? 'copied' : ''}`}
