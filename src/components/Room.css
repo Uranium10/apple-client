@@ -562,3 +562,55 @@
 }
 
 
+/* Mobile Landscape Mode Fullscreen Optimization (Waiting Room) */
+@media screen and (max-height: 600px) and (max-width: 950px) and (orientation: landscape) {
+  /* Only apply if not game-mode to avoid conflicting with the above rule */
+  .room-container:not(.game-mode) .room-box {
+    padding: 10px 20px;
+    height: 100vh;
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+    gap: 10px;
+  }
+  
+  .room-container:not(.game-mode) .room-header {
+    margin-bottom: 0;
+    padding-bottom: 5px;
+  }
+  
+  .room-container:not(.game-mode) .room-header h1 {
+    font-size: 28px;
+  }
+
+  .room-container:not(.game-mode) .room-main {
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  /* Hide the chat section completely in landscape to give space for player list */
+  .room-container:not(.game-mode) .room-main .chat-section {
+    display: none !important;
+  }
+  
+  .room-container:not(.game-mode) .players-list-section {
+    padding: 10px;
+  }
+
+  .room-container:not(.game-mode) .players-list-section h3 {
+    margin-bottom: 5px;
+    padding-bottom: 5px;
+    font-size: 16px;
+  }
+
+  .room-container:not(.game-mode) .room-footer {
+    margin-top: 0;
+    padding-top: 0;
+  }
+  
+  .room-container:not(.game-mode) .room-footer button {
+    padding: 10px;
+    font-size: 18px;
+  }
+}
