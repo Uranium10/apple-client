@@ -38,7 +38,7 @@ export class WebRTCManager {
         if (this.onConnectionError) this.onConnectionError();
         this.ws.close();
       }
-    }, 5000);
+    }, 15000);
 
     this.ws.onopen = () => {
       console.log('Connected to signaling server');
