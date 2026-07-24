@@ -536,8 +536,14 @@
   
   .room-container.game-mode {
     padding: 0px !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
     height: 100vh !important;
-    max-height: 100vh !important;
+    border-radius: 0 !important;
+    max-width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
     box-sizing: border-box !important;
   }
 
@@ -549,6 +555,7 @@
   }
   
   .game-inner-screen {
+    padding: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
   }
