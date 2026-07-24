@@ -141,8 +141,13 @@
   border-radius: 2px;
 }
 
-.danger-mode {
+.danger-mode::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
   animation: dangerPulse 0.5s ease-in-out infinite;
+  z-index: 50;
 }
 
 @keyframes dangerPulse {

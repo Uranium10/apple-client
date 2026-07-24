@@ -65,7 +65,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
   // Timer logic that works in background tabs
   useEffect(() => {
-    if (!gameStarted || isGameOver) return;
+    if (!gameStarted || isGameOver || isStarting) return;
 
     const startTimestamp = Date.now();
     const initialTime = timeRemaining;
@@ -123,7 +123,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       worker.postMessage('stop');
       worker.terminate();
     };
-  }, [gameStarted, isGameOver]); // Do not add timeRemaining to deps
+  }, [gameStarted, isGameOver, isStarting]); // Do not add timeRemaining to deps
 
   // Local Game Over Timer
   useEffect(() => {
@@ -588,7 +588,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
             size={boardData.size}
             onApplesRemoved={handleApplesRemoved}
             sendCursorData={handleCursorData}
-            isGameOver={isGameOver}
+            isGameOver={isGameOver || isStarting}
             score={score}
             timeRemaining={timeRemaining}
             totalTime={GAME_DURATION}
