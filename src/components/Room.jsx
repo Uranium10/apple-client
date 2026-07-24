@@ -65,7 +65,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
   // Timer logic that works in background tabs
   useEffect(() => {
-    if (!gameStarted || isGameOver || isStarting) return;
+    if (!gameStarted || isGameOver) return;
 
     const startTimestamp = Date.now();
     const initialTime = timeRemaining;
@@ -123,7 +123,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       worker.postMessage('stop');
       worker.terminate();
     };
-  }, [gameStarted, isGameOver, isStarting]); // Do not add timeRemaining to deps
+  }, [gameStarted, isGameOver]); // Do not add timeRemaining to deps
 
   // Local Game Over Timer
   useEffect(() => {
@@ -315,12 +315,6 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       case 'SYSTEM_MSG':
         setMessages(prev => [...prev, { type: 'system', text: data.text }]);
         break;
-      case 'PREPARE_GAME':
-        setBoardData(data.boardData);
-        setScore(0);
-        setTimeRemaining(data.gameDuration || GAME_DURATION);
-        setIsGameOver(false);
-        break;
       case 'START_COUNTDOWN':
         setIsStarting(true);
         setStartCountdown(data.count);
@@ -332,9 +326,9 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         break;
       case 'GAME_START':
         setGameStarted(true);
-        if (data.boardData) setBoardData(data.boardData);
+        setBoardData(data.boardData);
         setScore(0);
-        if (data.gameDuration) setTimeRemaining(data.gameDuration);
+        setTimeRemaining(GAME_DURATION);
         setIsGameOver(false);
         setIsStarting(false);
         setStartCountdown(null);
@@ -432,13 +426,6 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
   const startGame = () => {
     if (!isHost || isStarting) return;
-    
-    // Generate new board immediately for preview
-    const data = generateBoard(players.length);
-    setBoardData(data);
-    setScore(0);
-    setTimeRemaining(gameDuration);
-
     setIsStarting(true);
     setIsGameOver(false);
 
@@ -447,7 +434,6 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     const initialMsg = '3초 뒤 게임이 시작됩니다!';
     setMessages(prev => [...prev, { type: 'system', text: initialMsg }]);
     if (webrtcRef.current) {
-      webrtcRef.current.broadcast({ type: 'PREPARE_GAME', boardData: data, gameDuration });
       webrtcRef.current.broadcast({ type: 'SYSTEM_MSG', text: initialMsg });
     }
 
@@ -463,11 +449,16 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         count--;
         setTimeout(tick, 1000);
       } else {
+        const data = generateBoard(players.length);
+        setBoardData(data);
         setGameStarted(true);
+        setScore(0);
+        setTimeRemaining(GAME_DURATION);
+        setIsGameOver(false);
         setIsStarting(false);
         setStartCountdown(null);
 
-        webrtcRef.current.broadcast({ type: 'GAME_START', boardData: data, gameDuration });
+        webrtcRef.current.broadcast({ type: 'GAME_START', boardData: data });
       }
     };
 
@@ -597,7 +588,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
             size={boardData.size}
             onApplesRemoved={handleApplesRemoved}
             sendCursorData={handleCursorData}
-            isGameOver={isGameOver || isStarting}
+            isGameOver={isGameOver}
             score={score}
             timeRemaining={timeRemaining}
             totalTime={GAME_DURATION}
