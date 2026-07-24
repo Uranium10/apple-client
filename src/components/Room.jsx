@@ -1,0 +1,626 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { WebRTCManager } from '../network/webrtc';
+import { generateBoard } from '../utils/appleGenerator';
+import GameBoard from './GameBoard';
+import RemoteCursor from './RemoteCursor';
+import GameOverModal from './GameOverModal';
+import './Room.css';
+
+const GAME_DURATION = 120;
+
+const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, onLeave }) => {
+  const [isHost, setIsHost] = useState(initialIsHost);
+  const [hostId, setHostId] = useState(null);
+  const [players, setPlayers] = useState([]); // [{id, name, isReady}]
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [selectedPlayerId, setSelectedPlayerId] = useState(null);
+  
+  const [gameStarted, setGameStarted] = useState(false);
+  const [boardData, setBoardData] = useState(null);
+  const [cursorData, setCursorData] = useState({});
+  const [score, setScore] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(GAME_DURATION);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [gameOverVotes, setGameOverVotes] = useState({});
+  const [gameOverTimeLeft, setGameOverTimeLeft] = useState(10);
+  const [isSpectator, setIsSpectator] = useState(false);
+
+  // Refs for WebRTC callbacks to avoid stale closures
+  const isHostRef = useRef(isHost);
+  const boardDataRef = useRef(boardData);
+
+  useEffect(() => { isHostRef.current = isHost; }, [isHost]);
+  useEffect(() => { boardDataRef.current = boardData; }, [boardData]);
+
+  const COLORS = ['#ff4757', '#1e90ff', '#2ed573', '#ffa502', '#3742fa', '#ff6b81'];
+  
+  const getPlayerColor = (playerId) => {
+    const index = players.findIndex(p => p.id === playerId);
+    return index !== -1 ? COLORS[index % COLORS.length] : 'red';
+  };
+
+  const webrtcRef = useRef(null);
+  const timerRef = useRef(null);
+  const gameOverTimerRef = useRef(null);
+
+  // Timer logic that works in background tabs
+  useEffect(() => {
+    if (!gameStarted || isGameOver) return;
+    
+    const startTimestamp = Date.now();
+    const initialTime = timeRemaining;
+    
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+      const newRemaining = Math.max(0, initialTime - elapsed);
+      setTimeRemaining(newRemaining);
+      
+      if (isHostRef.current && webrtcRef.current) {
+        webrtcRef.current.broadcast({ type: 'TIME_UPDATE', timeRemaining: newRemaining });
+      }
+      
+      if (newRemaining <= 0) {
+        clearInterval(timer);
+        // Host triggers game over for everyone
+        if (isHostRef.current) {
+          setIsGameOver(true);
+          setGameOverVotes({});
+          setGameOverTimeLeft(10);
+          if (webrtcRef.current) {
+            webrtcRef.current.broadcast({ type: 'GAME_OVER' });
+          }
+        }
+      }
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [gameStarted, isGameOver]); // Do not add timeRemaining to deps
+
+  // Local Game Over Timer
+  useEffect(() => {
+    if (isGameOver) {
+      gameOverTimerRef.current = setInterval(() => {
+        setGameOverTimeLeft(prev => Math.max(0, prev - 1));
+      }, 1000);
+    }
+    return () => clearInterval(gameOverTimerRef.current);
+  }, [isGameOver]);
+
+  // Check Vote Results on Host
+  useEffect(() => {
+    if (isGameOver && isHost) {
+      const totalVotes = Object.keys(gameOverVotes).length;
+      // All remaining players voted OR time is up
+      if (totalVotes >= players.length || gameOverTimeLeft === 0) {
+        clearInterval(gameOverTimerRef.current);
+        
+        let playAgain = 0;
+        let toLobby = 0;
+        Object.values(gameOverVotes).forEach(v => {
+          if (v === 'PLAY_AGAIN') playAgain++;
+          if (v === 'TO_LOBBY') toLobby++;
+        });
+
+        if (playAgain >= toLobby) {
+          startGame();
+        } else {
+          setGameStarted(false);
+          setIsGameOver(false);
+          if (webrtcRef.current) {
+            webrtcRef.current.broadcast({ type: 'RETURN_TO_LOBBY' });
+          }
+        }
+      }
+    }
+  }, [gameOverVotes, gameOverTimeLeft, players.length, isGameOver, isHost]);
+
+  useEffect(() => {
+    // Initialize WebRTC
+    const manager = new WebRTCManager(
+      serverUrl,
+      clientName,
+      handleWebRTCMessage,
+      handleRoomInfo,
+      handlePlayerJoined,
+      handlePlayerLeft,
+      () => {
+        // Room full
+        onLeave();
+      },
+      () => {
+        // Room not found
+        onLeave();
+      }
+    );
+    webrtcRef.current = manager;
+    manager.connect(roomId, initialIsHost);
+
+    // If host, I am the only player initially
+    if (initialIsHost) {
+      setPlayers([{ id: manager.clientId, name: clientName, isReady: true }]);
+      setHostId(manager.clientId);
+    }
+
+    return () => {
+      // Cleanup WebRTC connection when component unmounts
+      if (manager.ws) manager.ws.close();
+      Object.values(manager.peers).forEach(peer => peer.close());
+    };
+  }, []);
+
+  const handleRoomInfo = useCallback((roomPlayers, receivedHostId) => {
+    setHostId(receivedHostId);
+    if (!isHost) {
+      setPlayers([
+        ...roomPlayers.map(p => ({ id: p.id, name: p.name, isReady: false })),
+        { id: webrtcRef.current.clientId, name: clientName, isReady: false }
+      ]);
+    }
+  }, [isHost, clientName]);
+
+  const handlePlayerJoined = useCallback((peerId, peerName) => {
+    setPlayers(prev => [...prev, { id: peerId, name: peerName, isReady: false }]);
+    setMessages(prev => [...prev, { type: 'system', text: `${peerName}님이 방에 입장했습니다.` }]);
+    
+    // If game has already started, host needs to sync state to the new player
+    if (isHost && gameStarted && boardData) {
+      setTimeout(() => {
+        if (webrtcRef.current) {
+          webrtcRef.current.broadcast({
+            type: 'BOARD_SYNC',
+            boardData,
+            timeRemaining,
+            score,
+            gameStarted: true
+          });
+        }
+      }, 1000);
+    }
+  }, [isHost, gameStarted, boardData, timeRemaining, score]);
+
+  const handlePlayerLeft = useCallback((peerId, newHostId) => {
+    setPlayers(prev => {
+      const leftPlayer = prev.find(p => p.id === peerId);
+      if (leftPlayer) {
+        setMessages(m => [...m, { type: 'system', text: `${leftPlayer.name}님이 퇴장했습니다.` }]);
+      }
+      return prev.filter(p => p.id !== peerId);
+    });
+
+    if (newHostId) {
+      setHostId(prev => {
+        if (prev && prev !== newHostId && gameStarted) {
+          setIsReconnecting(true);
+          setTimeout(() => setIsReconnecting(false), 3000);
+        }
+        return newHostId;
+      });
+      if (newHostId === webrtcRef.current?.clientId) {
+        setIsHost(true);
+        setMessages(m => [...m, { type: 'system', text: `당신이 새로운 방장이 되었습니다.` }]);
+      }
+    }
+
+    setCursorData(prev => {
+      const newData = { ...prev };
+      delete newData[peerId];
+      return newData;
+    });
+
+    setGameOverVotes(prev => {
+      const newVotes = { ...prev };
+      delete newVotes[peerId];
+      return newVotes;
+    });
+  }, [gameStarted]);
+
+  const handleKickPlayer = (targetId) => {
+    if (!isHost) return;
+    webrtcRef.current.broadcast({ type: 'KICK_PLAYER', targetId });
+    // Also force them out locally just in case
+    handlePlayerLeft(targetId);
+  };
+
+  const handleWebRTCMessage = useCallback((peerId, data) => {
+    switch (data.type) {
+      case 'KICK_PLAYER':
+        if (data.targetId === webrtcRef.current.clientId) {
+          localStorage.setItem(`banned_${roomId}`, Date.now() + 5000);
+          onLeave();
+        } else {
+          handlePlayerLeft(data.targetId);
+        }
+        break;
+      case 'ROOM_CHAT':
+        setMessages(prev => [...prev, { type: 'chat', senderName: data.senderName, text: data.text }]);
+        break;
+      case 'PLAYER_READY':
+        setPlayers(prev => prev.map(p => p.id === peerId ? { ...p, isReady: data.isReady } : p));
+        break;
+      case 'SYSTEM_MSG':
+        setMessages(prev => [...prev, { type: 'system', text: data.text }]);
+        break;
+      case 'START_COUNTDOWN':
+        setIsStarting(true);
+        setIsGameOver(false);
+        break;
+      case 'GAME_START':
+        setGameStarted(true);
+        setBoardData(data.boardData);
+        setScore(0);
+        setTimeRemaining(GAME_DURATION);
+        setIsGameOver(false);
+        setIsStarting(false);
+        setIsSpectator(false);
+        break;
+      case 'BOARD_SYNC':
+        if (!isHostRef.current) {
+          setBoardData(data.boardData);
+          if (data.timeRemaining !== undefined) setTimeRemaining(data.timeRemaining);
+          if (data.score !== undefined) setScore(data.score);
+          if (data.gameStarted) {
+            setGameStarted(true);
+            setIsSpectator(true); // Mid-game joiner is a spectator
+          }
+        }
+        break;
+      case 'CURSOR_MOVE':
+        setCursorData(prev => ({
+          ...prev,
+          [peerId]: data.cursor
+        }));
+        break;
+      case 'REQUEST_REMOVE':
+        if (isHostRef.current && boardDataRef.current) {
+          // Force apply removal to prevent sync desyncs
+          const newBoard = boardDataRef.current.board.map(apple => 
+            data.removedIds.includes(apple.id) ? { ...apple, removed: true } : apple
+          );
+          setBoardData(prev => ({ ...prev, board: newBoard }));
+          setScore(prev => prev + data.points);
+          
+          webrtcRef.current.broadcast({
+            type: 'APPLES_REMOVED',
+            removedIds: data.removedIds,
+            points: data.points
+          });
+        }
+        break;
+      case 'APPLES_REMOVED':
+        setBoardData(prev => {
+          if (!prev) return prev;
+          const newBoard = prev.board.map(apple => {
+            if (data.removedIds.includes(apple.id)) {
+              return { ...apple, removed: true };
+            }
+            return apple;
+          });
+          return { ...prev, board: newBoard };
+        });
+        if (!isHostRef.current) {
+          setScore(prev => prev + data.points);
+        }
+        break;
+      case 'TIME_UPDATE':
+        if (!isHostRef.current) setTimeRemaining(data.timeRemaining);
+        break;
+      case 'GAME_OVER':
+        setIsGameOver(true);
+        setTimeRemaining(0);
+        setGameOverVotes({});
+        setGameOverTimeLeft(10);
+        setIsSpectator(false);
+        break;
+      case 'RESTART_GAME':
+        setScore(0);
+        setTimeRemaining(GAME_DURATION);
+        setIsGameOver(false);
+        if (!isHostRef.current) setBoardData(data.boardData);
+        break;
+      case 'VOTE_CAST':
+        setGameOverVotes(prev => ({ ...prev, [peerId]: data.vote }));
+        break;
+      case 'RETURN_TO_LOBBY':
+        setGameStarted(false);
+        setIsGameOver(false);
+        break;
+      default:
+        break;
+    }
+  }, []);
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !webrtcRef.current) return;
+    
+    webrtcRef.current.broadcast({ type: 'ROOM_CHAT', senderName: clientName, text: chatInput });
+    setMessages(prev => [...prev, { type: 'chat', senderName: clientName, text: chatInput, isMe: true }]);
+    setChatInput('');
+  };
+
+  const toggleReady = () => {
+    const me = players.find(p => p.id === webrtcRef.current.clientId);
+    const newReady = !me.isReady;
+    setPlayers(prev => prev.map(p => p.id === webrtcRef.current.clientId ? { ...p, isReady: newReady } : p));
+    webrtcRef.current.broadcast({ type: 'PLAYER_READY', isReady: newReady });
+  };
+
+  const startGame = () => {
+    if (!isHost || isStarting) return;
+    setIsStarting(true);
+    setIsGameOver(false);
+    if (webrtcRef.current) {
+      webrtcRef.current.broadcast({ type: 'START_COUNTDOWN' });
+    }
+    
+    const initialMsg = '3초 뒤 게임이 시작됩니다!';
+    setMessages(prev => [...prev, { type: 'system', text: initialMsg }]);
+    webrtcRef.current.broadcast({ type: 'SYSTEM_MSG', text: initialMsg });
+
+    let count = 3;
+    const tick = () => {
+      if (count > 0) {
+        const msg = `${count}...`;
+        setMessages(prev => [...prev, { type: 'system', text: msg }]);
+        webrtcRef.current.broadcast({ type: 'SYSTEM_MSG', text: msg });
+        count--;
+        setTimeout(tick, 1000);
+      } else {
+        const data = generateBoard(players.length);
+        setBoardData(data);
+        setGameStarted(true);
+        setScore(0);
+        setTimeRemaining(GAME_DURATION);
+        setIsGameOver(false);
+        setIsStarting(false);
+        
+        webrtcRef.current.broadcast({ type: 'GAME_START', boardData: data });
+      }
+    };
+    
+    setTimeout(tick, 1000);
+  };
+
+  const handleApplesRemoved = (removedIds, points) => {
+    if (isHost) {
+      const newBoard = boardData.board.map(apple => 
+        removedIds.includes(apple.id) ? { ...apple, removed: true } : apple
+      );
+      setBoardData(prev => ({ ...prev, board: newBoard }));
+      setScore(prev => prev + points);
+
+      if (webrtcRef.current) {
+        webrtcRef.current.broadcast({
+          type: 'APPLES_REMOVED',
+          removedIds,
+          points
+        });
+      }
+    } else {
+      // Client sends request to host
+      if (webrtcRef.current) {
+        webrtcRef.current.broadcast({
+          type: 'REQUEST_REMOVE',
+          removedIds,
+          points
+        });
+      }
+    }
+  };
+
+  const handleCursorData = (cursor) => {
+    if (webrtcRef.current) {
+      webrtcRef.current.broadcast({
+        type: 'CURSOR_MOVE',
+        cursor
+      });
+    }
+  };
+
+  const returnToWaitingRoom = () => {
+    setGameStarted(false);
+    setIsGameOver(false);
+    setIsSpectator(false);
+  };
+
+  const copyInviteLink = () => {
+    const link = `http://${window.location.hostname}:5173/?room=${roomId}`;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(link).catch(() => {});
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = link;
+      textArea.style.position = "absolute";
+      textArea.style.left = "-999999px";
+      document.body.prepend(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (error) {
+        console.error(error);
+      } finally {
+        textArea.remove();
+      }
+    }
+  };
+
+  const allReady = players.every(p => p.isReady);
+
+  if (gameStarted) {
+    return (
+      <div className="game-screen">
+        <header>
+          <h2>방 코드: {roomId}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div>참가자: {players.length}명 | {isHost ? '방장' : '게스트'}</div>
+            {players.length === 1 && (
+              <button 
+                className="leave-btn" 
+                style={{ padding: '4px 10px', fontSize: '14px', borderRadius: '4px' }} 
+                onClick={returnToWaitingRoom}
+              >
+                방 나가기
+              </button>
+            )}
+          </div>
+        </header>
+        
+        {boardData && (
+          <GameBoard 
+            board={boardData.board} 
+            size={boardData.size}
+            onApplesRemoved={handleApplesRemoved}
+            sendCursorData={handleCursorData}
+            isGameOver={isGameOver}
+            score={score}
+            timeRemaining={timeRemaining}
+            totalTime={GAME_DURATION}
+            myColor={getPlayerColor(webrtcRef.current?.clientId)}
+            isSpectator={isSpectator}
+          />
+        )}
+
+        {isGameOver && (
+          <GameOverModal 
+            score={score} 
+            isHost={isHost}
+            timeLeft={gameOverTimeLeft}
+            votes={gameOverVotes}
+            playersCount={players.length}
+            onVote={(vote) => {
+              setGameOverVotes(prev => ({ ...prev, [webrtcRef.current.clientId]: vote }));
+              webrtcRef.current.broadcast({ type: 'VOTE_CAST', vote });
+            }}
+            onLeave={onLeave}
+            myId={webrtcRef.current?.clientId}
+          />
+        )}
+
+        {isReconnecting && (
+          <div className="reconnect-overlay">
+            <div className="reconnect-box">
+              <h3>방장 연결이 끊어졌습니다.</h3>
+              <p>새로운 방장에게 권한을 인계하는 중...</p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Waiting Room UI
+  return (
+    <div className="room-container">
+      <div className="room-box">
+        <div className="room-header">
+          <h1>대기실 (방 코드: {roomId})</h1>
+          <button className="leave-btn" onClick={onLeave}>방 나가기</button>
+        </div>
+
+        <div className="room-main">
+          <div className="players-list-section">
+            <h3>참가자 목록 ({players.length}명)</h3>
+            <ul className="players-list">
+              {players.map(p => (
+                <li 
+                  key={p.id} 
+                  className={`player-item ${p.id === webrtcRef.current?.clientId ? 'me' : ''}`}
+                  onClick={() => {
+                    if (isHost && p.id !== webrtcRef.current?.clientId) {
+                      setSelectedPlayerId(prev => prev === p.id ? null : p.id);
+                    }
+                  }}
+                  style={{ cursor: isHost && p.id !== webrtcRef.current?.clientId ? 'pointer' : 'default' }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <div className="player-info">
+                        <span className="player-name">{p.name}</span>
+                        {p.id === webrtcRef.current?.clientId && <span className="badge me-badge">나</span>}
+                        {p.id === hostId && <span className="badge host-badge">방장</span>}
+                      </div>
+                      <div className={`ready-status ${p.isReady ? 'ready' : 'not-ready'}`}>
+                        {p.isReady ? '준비 완료' : '대기 중'}
+                      </div>
+                    </div>
+                    {selectedPlayerId === p.id && (
+                      <div style={{ marginTop: '10px', textAlign: 'right' }}>
+                        <button 
+                          className="leave-btn" 
+                          style={{ padding: '4px 8px', fontSize: '12px' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleKickPlayer(p.id);
+                          }}
+                        >
+                          강퇴하기
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="invite-section">
+              <p style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '10px' }}>
+                초대 링크: <span style={{ wordBreak: 'break-all' }}>{`http://${window.location.hostname}:5173/?room=${roomId}`}</span>
+              </p>
+              <button style={{ flexShrink: 0 }} onClick={copyInviteLink}>복사</button>
+            </div>
+          </div>
+
+          <div className="chat-section">
+            <div className="chat-messages">
+              {messages.map((msg, i) => (
+                <div key={i} className={`chat-message ${msg.type === 'system' ? 'system-msg' : (msg.isMe ? 'my-msg' : 'other-msg')}`}>
+                  {msg.type === 'system' ? (
+                    <span>{msg.text}</span>
+                  ) : (
+                    <>
+                      <span className="sender-name">{msg.senderName}</span>
+                      <span className="message-text">{msg.text}</span>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+            <form className="chat-input-area" onSubmit={handleSendMessage}>
+              <input 
+                type="text" 
+                placeholder="메시지를 입력하세요..." 
+                value={chatInput} 
+                onChange={e => setChatInput(e.target.value)}
+              />
+              <button type="submit">전송</button>
+            </form>
+          </div>
+        </div>
+
+        <div className="room-footer">
+          {isHost ? (
+            <button 
+              className={`action-btn start-btn ${allReady && !isStarting ? 'ready' : 'disabled'}`}
+              onClick={startGame}
+              disabled={!allReady || isStarting}
+            >
+              {isStarting ? '시작 중...' : (allReady ? '게임 시작' : '모두 준비해야 시작 가능')}
+            </button>
+          ) : (
+            <button 
+              className={`action-btn ready-btn ${players.find(p => p.id === webrtcRef.current?.clientId)?.isReady ? 'is-ready' : ''} ${isStarting ? 'disabled' : ''}`}
+              onClick={toggleReady}
+              disabled={isStarting}
+            >
+              {players.find(p => p.id === webrtcRef.current?.clientId)?.isReady ? '준비 완료' : '준비'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Room;

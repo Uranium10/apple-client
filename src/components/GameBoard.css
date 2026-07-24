@@ -1,0 +1,129 @@
+.game-inner-screen {
+  background-color: #f0f7e6;
+  background-image: 
+    linear-gradient(45deg, #e4eed7 25%, transparent 25%, transparent 75%, #e4eed7 75%, #e4eed7),
+    linear-gradient(45deg, #e4eed7 25%, transparent 25%, transparent 75%, #e4eed7 75%, #e4eed7);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+  width: 100%;
+  height: 100%;
+  border-radius: 15px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+  padding: 20px;
+  overflow: hidden;
+}
+
+.game-board-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  user-select: none;
+  flex: 1;
+}
+
+.game-board {
+  display: grid;
+  gap: 1px;
+  position: relative;
+}
+
+.apple {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 22px;
+  font-family: 'Noto Sans', sans-serif;
+  font-weight: bold;
+  cursor: crosshair;
+  color: white;
+  position: relative;
+  transition: opacity 0.2s, transform 0.1s;
+  z-index: 1;
+}
+
+.apple::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url('/apple.png');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  mix-blend-mode: multiply;
+  filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.5));
+  z-index: -1;
+}
+
+.physics-particle {
+  transition: none !important;
+}
+
+.apple.removed {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.apple.selected::after {
+  content: '';
+  position: absolute;
+  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  border: 3px solid #00bfff;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #00bfff;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.selection-box {
+  position: fixed;
+  background-color: rgba(135, 206, 235, 0.4);
+  border: 2px solid #00bfff;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 0 5px rgba(0, 191, 255, 0.5);
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 60px;
+  height: 100%;
+  padding-top: 10px;
+  padding-bottom: 20px;
+}
+
+.score-display {
+  font-size: 24px;
+  font-weight: bold;
+  color: #00aa00;
+  margin-bottom: 15px;
+  font-family: sans-serif;
+}
+
+.timer-track {
+  width: 10px;
+  flex: 1;
+  background-color: transparent;
+  border-left: 2px solid rgba(0,170,0,0.2);
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+}
+
+.timer-fill {
+  width: 100%;
+  background-color: #00cc00;
+  transition: height 1s linear;
+  box-shadow: 0 0 5px #00ff00;
+  border-radius: 2px;
+}

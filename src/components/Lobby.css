@@ -1,0 +1,263 @@
+.lobby-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  background-color: #03cc67;
+  font-family: 'Noto Sans', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.lobby-box {
+  display: flex;
+  flex-direction: column;
+  width: 95%;
+  max-width: 1200px;
+  height: 90vh;
+  background-color: #ffffff;
+  border-radius: 24px;
+  padding: 30px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+}
+
+.lobby-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.lobby-header h1 {
+  color: #2c3e50;
+  margin: 0;
+  font-size: 32px;
+}
+
+.lobby-main {
+  display: flex;
+  flex: 1;
+  gap: 20px;
+  min-height: 0;
+}
+
+/* Chat Section */
+.chat-section {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  background: #212529;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-message {
+  max-width: 80%;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-message.my-msg {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.chat-message.other-msg {
+  align-self: flex-start;
+}
+
+.chat-message.system-msg {
+  align-self: center;
+  background-color: #343a40;
+  color: #adb5bd;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85em;
+  max-width: 100%;
+}
+
+.sender-name {
+  font-size: 0.8em;
+  color: #adb5bd;
+  margin-bottom: 2px;
+}
+
+.message-text {
+  padding: 8px 14px;
+  border-radius: 15px;
+  background-color: #343a40;
+  color: #f8f9fa;
+}
+
+.my-msg .message-text {
+  background-color: #2b8a3e;
+  color: white;
+}
+
+.chat-input-area {
+  display: flex;
+  padding: 15px;
+  background-color: #343a40;
+  border-top: 1px solid #495057;
+}
+
+.chat-input-area input {
+  flex: 1;
+  padding: 10px 15px;
+  background-color: #495057;
+  color: white;
+  border: 1px solid #6c757d;
+  border-radius: 20px;
+  outline: none;
+  font-family: inherit;
+}
+
+.chat-input-area button {
+  background-color: #2b8a3e;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 0 20px;
+  margin-left: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* Right Panel */
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.online-users {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  padding: 15px;
+  overflow-y: auto;
+}
+
+.online-users h3 {
+  margin-top: 0;
+  border-bottom: 2px solid #f1f3f5;
+  padding-bottom: 10px;
+  color: #2c3e50;
+}
+
+.online-users ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.online-users li {
+  padding: 8px 0;
+  color: #495057;
+}
+
+.online-users li.me {
+  font-weight: bold;
+  color: #4CAF50;
+}
+
+.profile-section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  padding: 15px;
+}
+
+.profile-view {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.profile-view span {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.profile-view button,
+.profile-edit button {
+  background-color: #e9ecef;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.profile-edit {
+  display: flex;
+  gap: 10px;
+}
+
+.profile-edit input {
+  flex: 1;
+  padding: 6px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+}
+
+/* Footer */
+.lobby-footer {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.room-actions {
+  display: flex;
+  gap: 30px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.create-btn {
+  background-color: #2b8a3e;
+  color: white;
+  border: none;
+  padding: 10px 30px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.join-action {
+  display: flex;
+  gap: 10px;
+}
+
+.join-action input {
+  padding: 10px 15px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  width: 150px;
+}
+
+.join-btn {
+  background-color: #20c997;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}

@@ -1,3 +1,3 @@
 @echo off 
 call npm install
-call npm run dev -- --open 
+call npm run dev -- --host --open 
