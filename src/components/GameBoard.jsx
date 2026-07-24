@@ -26,7 +26,6 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
   const [currentSelection, setCurrentSelection] = useState([]);
   const [newParticles, setNewParticles] = useState([]);
   const [boardScale, setBoardScale] = useState(1);
-  const [isPortrait, setIsPortrait] = useState(false);
   
   const boardRef = useRef(null);
   const innerScreenRef = useRef(null);
@@ -82,12 +81,6 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerHeight > window.innerWidth * 1.2) {
-        setIsPortrait(true);
-      } else {
-        setIsPortrait(false);
-      }
-      
       if (!innerScreenRef.current) return;
       const cols = size.width || size.cols;
       const rows = size.height || size.rows;
@@ -277,15 +270,6 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
         handleMouseUp(e);
       }}
     >
-      {isPortrait && (
-        <div className="portrait-warning">
-          <div className="portrait-warning-content">
-            <span style={{ fontSize: '40px' }}>🔄</span>
-            <h2>기기를 가로로 회전해주세요!</h2>
-            <p>더 쾌적한 사과게임 플레이를 위해 가로 모드를 권장합니다.</p>
-          </div>
-        </div>
-      )}
       <div className="game-board-container">
         <div style={{ width: boardWidth * boardScale, height: boardHeight * boardScale }}>
           <div 
