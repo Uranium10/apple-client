@@ -345,3 +345,38 @@
 .join-btn:active {
   transform: scale(0.95);
 }
+
+/* Mobile Landscape Fullscreen Optimization */
+@media screen and (max-height: 600px) and (max-width: 950px) and (orientation: landscape) {
+  .lobby-box {
+    flex-direction: row;
+    gap: 15px;
+    padding: 15px;
+    height: 100vh;
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .lobby-header {
+    display: none;
+  }
+
+  .lobby-main {
+    flex: 1;
+    min-height: 0;
+  }
+  
+  .right-panel {
+    display: none; /* Hide online users list in landscape to save space */
+  }
+
+  .lobby-footer {
+    width: 300px;
+    margin-top: 0;
+    padding-top: 0;
+    display: flex;
+    align-items: center;
+  }
+}
