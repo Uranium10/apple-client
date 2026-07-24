@@ -183,6 +183,12 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       },
       () => {
         // Room not found
+        alert("존재하지 않는 방이거나, 이미 닫힌 방입니다.");
+        onLeave();
+      },
+      () => {
+        // Connection error
+        alert("서버와의 연결에 실패했습니다.");
         onLeave();
       }
     );

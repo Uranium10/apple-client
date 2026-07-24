@@ -8,7 +8,7 @@ const ICE_SERVERS = {
 };
 
 export class WebRTCManager {
-  constructor(serverUrl, clientName, onMessageCallback, onRoomInfo, onPlayerJoined, onPlayerLeft, onRoomFull, onRoomNotFound) {
+  constructor(serverUrl, clientName, onMessageCallback, onRoomInfo, onPlayerJoined, onPlayerLeft, onRoomFull, onRoomNotFound, onConnectionError) {
     this.serverUrl = serverUrl;
     this.clientName = clientName;
     this.ws = null;
@@ -23,15 +23,31 @@ export class WebRTCManager {
     this.onPlayerLeft = onPlayerLeft;
     this.onRoomFull = onRoomFull;
     this.onRoomNotFound = onRoomNotFound;
+    this.onConnectionError = onConnectionError;
     this.messageQueue = {}; // Queue for messages before channel opens
+    this.connectionTimeout = null;
   }
 
   connect(roomId, isHost = false) {
     this.roomId = roomId;
     this.ws = new WebSocket(`${this.serverUrl}/ws/${roomId}/${this.clientId}?name=${encodeURIComponent(this.clientName)}&isHost=${isHost}`);
 
+    this.connectionTimeout = setTimeout(() => {
+      if (this.ws.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket connection timeout');
+        if (this.onConnectionError) this.onConnectionError();
+        this.ws.close();
+      }
+    }, 5000);
+
     this.ws.onopen = () => {
       console.log('Connected to signaling server');
+      if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
+    };
+
+    this.ws.onerror = (error) => {
+      console.error('WebSocket Error:', error);
+      if (this.onConnectionError) this.onConnectionError();
     };
 
     this.ws.onmessage = async (event) => {
@@ -41,6 +57,7 @@ export class WebRTCManager {
 
     this.ws.onclose = () => {
       console.log('Disconnected from signaling server');
+      if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
     };
   }
 
