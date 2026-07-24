@@ -65,7 +65,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
   // Timer logic that works in background tabs
   useEffect(() => {
-    if (!gameStarted || isGameOver) return;
+    if (!gameStarted || isGameOver || isStarting) return;
 
     const startTimestamp = Date.now();
     const initialTime = timeRemaining;
@@ -123,7 +123,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       worker.postMessage('stop');
       worker.terminate();
     };
-  }, [gameStarted, isGameOver]); // Do not add timeRemaining to deps
+  }, [gameStarted, isGameOver, isStarting]); // Do not add timeRemaining to deps
 
   // Local Game Over Timer
   useEffect(() => {
@@ -328,7 +328,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setGameStarted(true);
         setBoardData(data.boardData);
         setScore(0);
-        setTimeRemaining(GAME_DURATION);
+        setTimeRemaining(data.gameDuration || GAME_DURATION);
         setIsGameOver(false);
         setIsStarting(false);
         setStartCountdown(null);
@@ -449,16 +449,16 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         count--;
         setTimeout(tick, 1000);
       } else {
-        const data = generateBoard(players.length);
+        const data = generateBoard(boardSize);
         setBoardData(data);
         setGameStarted(true);
         setScore(0);
-        setTimeRemaining(GAME_DURATION);
+        setTimeRemaining(gameDuration);
         setIsGameOver(false);
         setIsStarting(false);
         setStartCountdown(null);
 
-        webrtcRef.current.broadcast({ type: 'GAME_START', boardData: data });
+        webrtcRef.current.broadcast({ type: 'GAME_START', boardData: data, gameDuration });
       }
     };
 
