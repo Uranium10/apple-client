@@ -6,6 +6,23 @@ import './App.css';
 
 const SIGNALING_SERVER_URL = import.meta.env.VITE_SIGNALING_SERVER_URL || `http://${window.location.hostname}:8000`;
 
+const getWebSocketUrl = (url) => {
+  let wsUrl = url;
+  if (wsUrl.startsWith('http://')) wsUrl = wsUrl.replace('http://', 'ws://');
+  else if (wsUrl.startsWith('https://')) wsUrl = wsUrl.replace('https://', 'wss://');
+  else if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
+    // No protocol provided
+    wsUrl = window.location.protocol === 'https:' ? `wss://${wsUrl}` : `ws://${wsUrl}`;
+  }
+  
+  // Force wss if we are on a secure context (Vercel) but the url is somehow ws://
+  if (window.location.protocol === 'https:' && wsUrl.startsWith('ws://') && !wsUrl.includes('localhost') && !wsUrl.includes('127.0.0.1')) {
+    wsUrl = wsUrl.replace('ws://', 'wss://');
+  }
+  
+  return wsUrl;
+};
+
 function App() {
   const [clientName, setClientName] = useState(() => localStorage.getItem('clientName') || '');
   const [clientId] = useState(() => {
@@ -183,7 +200,7 @@ function App() {
 
       {!inRoom ? (
         <Lobby 
-          serverUrl={SIGNALING_SERVER_URL.replace('http://', 'ws://').replace('https://', 'wss://')}
+          serverUrl={getWebSocketUrl(SIGNALING_SERVER_URL)}
           clientName={clientName}
           setClientName={(name) => {
             setClientName(name);
@@ -198,7 +215,7 @@ function App() {
           roomId={roomId}
           isHost={isHost}
           clientName={clientName}
-          serverUrl={SIGNALING_SERVER_URL.replace('http://', 'ws://').replace('https://', 'wss://')}
+          serverUrl={getWebSocketUrl(SIGNALING_SERVER_URL)}
           apiServerUrl={SIGNALING_SERVER_URL}
           onLeave={handleLeaveRoom}
         />
