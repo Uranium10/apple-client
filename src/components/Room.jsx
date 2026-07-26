@@ -145,7 +145,10 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   // Check Vote Results on Host
   useEffect(() => {
     if (isGameOver && isHost) {
-      const activeVotes = Object.values(gameOverVotes).filter(v => v === 'PLAY_AGAIN' || v === 'TO_LOBBY' || v === 'LEAVE');
+      const currentPlayersMap = new Set(players.map(p => p.id));
+      const activeVotes = Object.entries(gameOverVotes)
+        .filter(([id, v]) => currentPlayersMap.has(id) && (v === 'PLAY_AGAIN' || v === 'TO_LOBBY' || v === 'LEAVE'))
+        .map(([id, v]) => v);
       const totalVotes = activeVotes.length;
       // All remaining players voted OR time is up
       if ((totalVotes >= players.length && players.length > 0) || gameOverTimeLeft === 0) {
@@ -161,6 +164,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         let playAgain = 0;
         let toLobby = 0;
         Object.entries(gameOverVotes).forEach(([id, v]) => {
+          if (!currentPlayersMap.has(id)) return;
           if (v === 'PLAY_AGAIN') playAgain++;
           if (v === 'TO_LOBBY') toLobby++;
         });
@@ -177,7 +181,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         }
       }
     }
-  }, [gameOverVotes, gameOverTimeLeft, players.length, isGameOver, isHost, hostId]);
+  }, [gameOverVotes, gameOverTimeLeft, players.length, isGameOver, isHost, hostId, players]);
 
   useEffect(() => {
     // Initialize WebRTC
