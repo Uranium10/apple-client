@@ -24,7 +24,7 @@ const GameOverModal = ({ score, isHost, timeLeft, votes, playersCount, players, 
     ...(players || []).map(p => p.id),
     ...Object.keys(playerScores || {})
   ]));
-  
+
   const sortedPlayers = allPlayerIds.map(id => {
     const p = (players || []).find(pl => pl.id === id);
     return {
@@ -70,7 +70,7 @@ const GameOverModal = ({ score, isHost, timeLeft, votes, playersCount, players, 
 
           {playersCount > 1 && (
             <div className="contribution-board">
-              <h3 className="contribution-title">🏆 기여도 순위</h3>
+              <h3 className="contribution-title">🏆 기여 점수</h3>
               <div className="contribution-list">
                 {sortedPlayers.map((p, idx) => (
                   <div key={p.id} className={`contribution-row row-${idx % 2}`}>
