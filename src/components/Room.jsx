@@ -32,6 +32,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   const [isSpectator, setIsSpectator] = useState(false);
   const [startCountdown, setStartCountdown] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [playerScores, setPlayerScores] = useState({});
 
   const chatEndRef = useRef(null);
 
@@ -40,11 +41,13 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   const boardDataRef = useRef(boardData);
   const playersRef = useRef(players);
   const scoreRef = useRef(score);
+  const playerScoresRef = useRef(playerScores);
 
   useEffect(() => { isHostRef.current = isHost; }, [isHost]);
   useEffect(() => { boardDataRef.current = boardData; }, [boardData]);
   useEffect(() => { playersRef.current = players; }, [players]);
   useEffect(() => { scoreRef.current = score; }, [score]);
+  useEffect(() => { playerScoresRef.current = playerScores; }, [playerScores]);
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -100,7 +103,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           setGameOverVotes({});
           setGameOverTimeLeft(10);
           if (webrtcRef.current) {
-            webrtcRef.current.broadcast({ type: 'GAME_OVER' });
+            webrtcRef.current.broadcast({ type: 'GAME_OVER', playerScores: playerScoresRef.current });
           }
 
           const playerNames = playersRef.current.map(p => p.name);
@@ -142,14 +145,22 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   // Check Vote Results on Host
   useEffect(() => {
     if (isGameOver && isHost) {
-      const totalVotes = Object.keys(gameOverVotes).length;
+      const activeVotes = Object.values(gameOverVotes).filter(v => v === 'PLAY_AGAIN' || v === 'TO_LOBBY' || v === 'LEAVE');
+      const totalVotes = activeVotes.length;
       // All remaining players voted OR time is up
-      if (totalVotes >= players.length || gameOverTimeLeft === 0) {
+      if ((totalVotes >= players.length && players.length > 0) || gameOverTimeLeft === 0) {
         clearInterval(gameOverTimerRef.current);
+
+        webrtcRef.current.broadcast({ type: 'CONCLUDE_VOTING', votes: gameOverVotes });
+
+        if (gameOverVotes[hostId] === 'LEAVE') {
+          onLeave();
+          return;
+        }
 
         let playAgain = 0;
         let toLobby = 0;
-        Object.values(gameOverVotes).forEach(v => {
+        Object.entries(gameOverVotes).forEach(([id, v]) => {
           if (v === 'PLAY_AGAIN') playAgain++;
           if (v === 'TO_LOBBY') toLobby++;
         });
@@ -166,7 +177,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         }
       }
     }
-  }, [gameOverVotes, gameOverTimeLeft, players.length, isGameOver, isHost]);
+  }, [gameOverVotes, gameOverTimeLeft, players.length, isGameOver, isHost, hostId]);
 
   useEffect(() => {
     // Initialize WebRTC
@@ -231,7 +242,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
             boardData,
             timeRemaining,
             score,
-            gameStarted: true
+            gameStarted: true,
+            playerScores: playerScoresRef.current
           });
         }
       }, 1000);
@@ -320,6 +332,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setScore(0);
         setTimeRemaining(GAME_DURATION);
         setIsGameOver(false);
+        setPlayerScores({});
         break;
       case 'START_COUNTDOWN':
         setIsStarting(true);
@@ -339,12 +352,14 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setIsStarting(false);
         setStartCountdown(null);
         setIsSpectator(false);
+        setPlayerScores(data.playerScores || {});
         break;
       case 'BOARD_SYNC':
         if (!isHostRef.current) {
           setBoardData(data.boardData);
           if (data.timeRemaining !== undefined) setTimeRemaining(data.timeRemaining);
           if (data.score !== undefined) setScore(data.score);
+          if (data.playerScores) setPlayerScores(data.playerScores);
           if (data.gameStarted) {
             setGameStarted(true);
             setIsSpectator(true); // Mid-game joiner is a spectator
@@ -356,6 +371,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         break;
       case 'REQUEST_REMOVE':
         if (isHostRef.current && boardDataRef.current) {
+          const scorerId = data.scorerId || peerId;
           // Force apply removal to prevent sync desyncs
           const newBoard = boardDataRef.current.board.map(apple =>
             data.removedIds.includes(apple.id) ? { ...apple, removed: true } : apple
@@ -363,10 +379,18 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           setBoardData(prev => ({ ...prev, board: newBoard }));
           setScore(prev => prev + data.points);
 
+          const newScores = {
+            ...playerScoresRef.current,
+            [scorerId]: (playerScoresRef.current[scorerId] || 0) + data.points
+          };
+          setPlayerScores(newScores);
+
           webrtcRef.current.broadcast({
             type: 'APPLES_REMOVED',
             removedIds: data.removedIds,
-            points: data.points
+            points: data.points,
+            scorerId,
+            playerScores: newScores
           });
         }
         break;
@@ -383,6 +407,14 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         });
         if (!isHostRef.current) {
           setScore(prev => prev + data.points);
+          if (data.playerScores) {
+            setPlayerScores(data.playerScores);
+          } else if (data.scorerId) {
+            setPlayerScores(prev => ({
+              ...prev,
+              [data.scorerId]: (prev[data.scorerId] || 0) + data.points
+            }));
+          }
         }
         break;
       case 'TIME_UPDATE':
@@ -394,15 +426,30 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setGameOverVotes({});
         setGameOverTimeLeft(10);
         setIsSpectator(false);
+        if (data.playerScores) setPlayerScores(data.playerScores);
         break;
       case 'RESTART_GAME':
         setScore(0);
         setTimeRemaining(GAME_DURATION);
         setIsGameOver(false);
+        setPlayerScores({});
         if (!isHostRef.current) setBoardData(data.boardData);
         break;
       case 'VOTE_CAST':
-        setGameOverVotes(prev => ({ ...prev, [peerId]: data.vote }));
+        if (data.vote === null) {
+          setGameOverVotes(prev => {
+            const next = { ...prev };
+            delete next[peerId];
+            return next;
+          });
+        } else {
+          setGameOverVotes(prev => ({ ...prev, [peerId]: data.vote }));
+        }
+        break;
+      case 'CONCLUDE_VOTING':
+        if (data.votes && data.votes[webrtcRef.current?.clientId] === 'LEAVE') {
+          onLeave();
+        }
         break;
       case 'RETURN_TO_LOBBY':
         setGameStarted(false);
@@ -440,6 +487,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       const data = generateBoard(1);
       setBoardData(data);
       setScore(0);
+      setPlayerScores({});
       setTimeRemaining(GAME_DURATION);
       setGameStarted(true);
       setIsStarting(false);
@@ -480,15 +528,17 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setIsGameOver(false);
         setIsStarting(false);
         setStartCountdown(null);
+        setPlayerScores({});
 
-        webrtcRef.current.broadcast({ type: 'GAME_START', boardData: data });
+        webrtcRef.current.broadcast({ type: 'GAME_START', boardData: data, playerScores: {} });
       }
     };
 
     tick();
   };
 
-  const handleApplesRemoved = (removedIds, points) => {
+  const handleApplesRemoved = (removedIds, points, customScorerId = null) => {
+    const scorerId = customScorerId || webrtcRef.current?.clientId;
     if (isHost) {
       const newBoard = boardData.board.map(apple =>
         removedIds.includes(apple.id) ? { ...apple, removed: true } : apple
@@ -496,11 +546,19 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       setBoardData(prev => ({ ...prev, board: newBoard }));
       setScore(prev => prev + points);
 
+      const newScores = {
+        ...playerScoresRef.current,
+        [scorerId]: (playerScoresRef.current[scorerId] || 0) + points
+      };
+      setPlayerScores(newScores);
+
       if (webrtcRef.current) {
         webrtcRef.current.broadcast({
           type: 'APPLES_REMOVED',
           removedIds,
-          points
+          points,
+          scorerId,
+          playerScores: newScores
         });
       }
     } else {
@@ -509,7 +567,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         webrtcRef.current.broadcast({
           type: 'REQUEST_REMOVE',
           removedIds,
-          points
+          points,
+          scorerId: webrtcRef.current.clientId
         });
       }
     }
@@ -629,8 +688,18 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
             timeLeft={gameOverTimeLeft}
             votes={gameOverVotes}
             playersCount={players.length}
+            players={players}
+            playerScores={playerScores}
             onVote={(vote) => {
-              setGameOverVotes(prev => ({ ...prev, [webrtcRef.current.clientId]: vote }));
+              setGameOverVotes(prev => {
+                const next = { ...prev };
+                if (vote === null) {
+                  delete next[webrtcRef.current?.clientId];
+                } else {
+                  next[webrtcRef.current?.clientId] = vote;
+                }
+                return next;
+              });
               webrtcRef.current.broadcast({ type: 'VOTE_CAST', vote });
             }}
             onLeave={onLeave}
