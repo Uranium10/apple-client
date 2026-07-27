@@ -209,28 +209,7 @@
   100% { transform: scale(1); }
 }
 
-/* Automatically rotate screen in mobile portrait mode to output horizontally */
-@media screen and (orientation: portrait) and (max-width: 950px) {
-  body {
-    overflow: hidden !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  .app-container {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    width: 100vh !important;
-    height: 100vw !important;
-    max-width: 100vh !important;
-    max-height: 100vw !important;
-    transform: translate(-50%, -50%) rotate(-90deg) !important;
-    transform-origin: center center !important;
-    overflow: hidden !important;
-  }
-}
-
-/* Home Screen (Lobby) Mobile Landscape Compact Layout */
+/* Home Screen (Lobby) Mobile Compact Layout */
 @media screen and (max-width: 950px) {
   .lobby {
     flex-direction: row;
