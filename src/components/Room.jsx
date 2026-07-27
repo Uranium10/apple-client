@@ -42,12 +42,16 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   const playersRef = useRef(players);
   const scoreRef = useRef(score);
   const playerScoresRef = useRef(playerScores);
+  const gameStartedRef = useRef(gameStarted);
+  const timeRemainingRef = useRef(timeRemaining);
 
   useEffect(() => { isHostRef.current = isHost; }, [isHost]);
   useEffect(() => { boardDataRef.current = boardData; }, [boardData]);
   useEffect(() => { playersRef.current = players; }, [players]);
   useEffect(() => { scoreRef.current = score; }, [score]);
   useEffect(() => { playerScoresRef.current = playerScores; }, [playerScores]);
+  useEffect(() => { gameStartedRef.current = gameStarted; }, [gameStarted]);
+  useEffect(() => { timeRemainingRef.current = timeRemaining; }, [timeRemaining]);
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -205,6 +209,20 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         // Connection error
         alert("서버와의 연결에 실패했습니다.");
         onLeave();
+      },
+      (peerId) => {
+        if (isHostRef.current && gameStartedRef.current && boardDataRef.current) {
+          if (webrtcRef.current) {
+            webrtcRef.current.sendTo(peerId, {
+              type: 'BOARD_SYNC',
+              boardData: boardDataRef.current,
+              timeRemaining: timeRemainingRef.current,
+              score: scoreRef.current,
+              gameStarted: true,
+              playerScores: playerScoresRef.current
+            });
+          }
+        }
       }
     );
     webrtcRef.current = manager;
@@ -225,16 +243,17 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
   const handleRoomInfo = useCallback((roomPlayers, receivedHostId) => {
     setHostId(receivedHostId);
-    if (!isHost) {
+    if (!isHostRef.current) {
       setPlayers([
         ...roomPlayers.map(p => ({ id: p.id, name: p.name, isReady: false })),
-        { id: webrtcRef.current.clientId, name: clientName, isReady: false }
+        { id: webrtcRef.current?.clientId || 'me', name: clientName, isReady: false }
       ]);
     }
-  }, [isHost, clientName]);
+  }, [clientName]);
 
   const handlePlayerJoined = useCallback((peerId, peerName) => {
     setPlayers(prev => {
+      if (prev.some(p => p.id === peerId)) return prev;
       const next = [...prev, { id: peerId, name: peerName, isReady: false }];
       // If I am ready, broadcast my ready state so the new player learns about it
       const me = next.find(p => p.id === webrtcRef.current?.clientId);
@@ -250,21 +269,21 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     setMessages(prev => [...prev, { type: 'system', text: `${peerName}님이 방에 입장했습니다.` }]);
 
     // If game has already started, host needs to sync state to the new player
-    if (isHost && gameStarted && boardData) {
+    if (isHostRef.current && gameStartedRef.current && boardDataRef.current) {
       setTimeout(() => {
         if (webrtcRef.current) {
-          webrtcRef.current.broadcast({
+          webrtcRef.current.sendTo(peerId, {
             type: 'BOARD_SYNC',
-            boardData,
-            timeRemaining,
-            score,
+            boardData: boardDataRef.current,
+            timeRemaining: timeRemainingRef.current,
+            score: scoreRef.current,
             gameStarted: true,
             playerScores: playerScoresRef.current
           });
         }
       }, 1000);
     }
-  }, [isHost, gameStarted, boardData, timeRemaining, score]);
+  }, []);
 
   const handlePlayerLeft = useCallback((peerId, newHostId) => {
     if (cursorDataRef.current && cursorDataRef.current[peerId]) {
@@ -281,7 +300,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
     if (newHostId) {
       setHostId(prev => {
-        if (prev && prev !== newHostId && gameStarted) {
+        if (prev && prev !== newHostId && gameStartedRef.current) {
           setIsReconnecting(true);
           setTimeout(() => setIsReconnecting(false), 3000);
         }
@@ -315,7 +334,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       delete newVotes[peerId];
       return newVotes;
     });
-  }, [gameStarted]);
+  }, []);
 
   const handleKickPlayer = (targetId) => {
     if (!isHost) return;

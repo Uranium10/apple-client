@@ -24,6 +24,7 @@ export class WebRTCManager {
     this.onRoomFull = onRoomFull;
     this.onRoomNotFound = onRoomNotFound;
     this.onConnectionError = onConnectionError;
+    this.onPeerConnected = onPeerConnected;
     this.messageQueue = {}; // Queue for messages before channel opens
     this.connectionTimeout = null;
   }
@@ -172,6 +173,9 @@ export class WebRTCManager {
         this.messageQueue[peerId].forEach(msg => dataChannel.send(msg));
         this.messageQueue[peerId] = [];
       }
+      if (this.onPeerConnected) {
+        this.onPeerConnected(peerId);
+      }
     };
 
     if (dataChannel.readyState === 'open') {
@@ -223,6 +227,17 @@ export class WebRTCManager {
     const peer = this.peers[peerId];
     if (peer) {
       await peer.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+  }
+
+  sendTo(peerId, message) {
+    const data = JSON.stringify(message);
+    const channel = this.dataChannels[peerId];
+    if (channel && channel.readyState === 'open') {
+      channel.send(data);
+    } else {
+      if (!this.messageQueue[peerId]) this.messageQueue[peerId] = [];
+      this.messageQueue[peerId].push(data);
     }
   }
 
