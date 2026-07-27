@@ -79,6 +79,21 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     setLocalBoard(board);
   }, [board, size]);
 
+  const getBoardCoords = (e, boardRect, scale) => {
+    const isRotated = window.innerWidth <= 950 && window.innerHeight > window.innerWidth;
+    if (isRotated) {
+      return {
+        relX: (boardRect.bottom - e.clientY) / scale,
+        relY: (e.clientX - boardRect.left) / scale
+      };
+    } else {
+      return {
+        relX: (e.clientX - boardRect.left) / scale,
+        relY: (e.clientY - boardRect.top) / scale
+      };
+    }
+  };
+
   useEffect(() => {
     const handleResize = () => {
       if (!innerScreenRef.current) return;
@@ -88,15 +103,18 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
       const boardHeight = rows * 40;
       
       const isMobile = window.innerWidth <= 950 || window.innerHeight <= 600;
-      const widthPadding = isMobile ? 15 : 100;
-      const heightPadding = isMobile ? 15 : 60;
+      const widthPadding = isMobile ? 40 : 100;
+      const heightPadding = isMobile ? 40 : 60;
       
       const availableWidth = innerScreenRef.current.clientWidth - widthPadding;
       const availableHeight = innerScreenRef.current.clientHeight - heightPadding;
       
       const scaleX = availableWidth / boardWidth;
       const scaleY = availableHeight / boardHeight;
-      const newScale = Math.min(1, scaleX, scaleY);
+      let newScale = Math.min(1, scaleX, scaleY);
+      if (isMobile) {
+        newScale *= 0.88; // Slightly reduce scale on mobile so apples never touch screen edges or address bars
+      }
       setBoardScale(newScale);
     };
     
@@ -106,30 +124,28 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
   }, [size]);
 
   const handleMouseDown = (e) => {
-    if (isGameOver || isSpectator) return;
+    if (isGameOver || isSpectator || !boardRef.current) return;
     setIsDragging(true);
     
     const boardRect = boardRef.current.getBoundingClientRect();
-    const x = e.clientX;
-    const y = e.clientY;
+    const { relX, relY } = getBoardCoords(e, boardRect, boardScale);
     
-    const relX = (x - boardRect.left) / boardScale;
-    const relY = (y - boardRect.top) / boardScale;
-    
-    startPos.current = { x, y };
     startPosRel.current = { x: relX, y: relY };
-    setSelectionRect({ startX: x, startY: y, endX: x, endY: y });
+    setSelectionRect({ startX: relX, startY: relY, endX: relX, endY: relY });
     
-    // Cache positions for smooth selection checking during mousemove
+    // Cache positions in unscaled board coordinates (0..680, 0..400) for rotation-safe selection
+    const cols = size.width || size.cols;
     const apples = Array.from(boardRef.current.children).filter(child => child.classList.contains('apple'));
     applePositions.current = apples.map(apple => {
-      const bRect = apple.getBoundingClientRect();
+      const id = parseInt(apple.dataset.id);
+      const col = id % cols;
+      const row = Math.floor(id / cols);
       return {
-        id: parseInt(apple.dataset.id),
+        id: id,
         number: parseInt(apple.dataset.number),
         removed: apple.classList.contains('removed'),
-        centerX: bRect.left + bRect.width / 2,
-        centerY: bRect.top + bRect.height / 2
+        centerX: col * 40 + 20,
+        centerY: row * 40 + 20
       };
     });
     
@@ -139,13 +155,12 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
   };
 
   const handleMouseMove = (e) => {
-    if (isGameOver) return;
+    if (isGameOver || !boardRef.current) return;
     
-    if (sendCursorData && boardRef.current) {
-      const boardRect = boardRef.current.getBoundingClientRect();
-      const relX = (e.clientX - boardRect.left) / boardScale;
-      const relY = (e.clientY - boardRect.top) / boardScale;
-      
+    const boardRect = boardRef.current.getBoundingClientRect();
+    const { relX, relY } = getBoardCoords(e, boardRect, boardScale);
+
+    if (sendCursorData) {
       const rectData = isDragging ? { 
         startX: startPosRel.current.x, startY: startPosRel.current.y, 
         endX: relX, endY: relY 
@@ -163,17 +178,17 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
 
     if (!isDragging) return;
     
-    setSelectionRect(prev => ({
+    setSelectionRect(prev => prev ? ({
       ...prev,
-      endX: e.clientX,
-      endY: e.clientY
-    }));
+      endX: relX,
+      endY: relY
+    }) : null);
 
-    // Calculate current selection
-    const minX = Math.min(startPos.current.x, e.clientX);
-    const maxX = Math.max(startPos.current.x, e.clientX);
-    const minY = Math.min(startPos.current.y, e.clientY);
-    const maxY = Math.max(startPos.current.y, e.clientY);
+    // Calculate current selection in unscaled board coordinates
+    const minX = Math.min(startPosRel.current.x, relX);
+    const maxX = Math.max(startPosRel.current.x, relX);
+    const minY = Math.min(startPosRel.current.y, relY);
+    const maxY = Math.max(startPosRel.current.y, relY);
 
     const selected = [];
     applePositions.current.forEach(pos => {
@@ -191,8 +206,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     
     if (sendCursorData && boardRef.current) {
       const boardRect = boardRef.current.getBoundingClientRect();
-      const relX = (e.clientX - boardRect.left) / boardScale;
-      const relY = (e.clientY - boardRect.top) / boardScale;
+      const { relX, relY } = getBoardCoords(e, boardRect, boardScale);
       sendCursorData({ x: relX, y: relY, isDragging: false, rect: null });
       lastCursorState.current = false;
     }
@@ -299,22 +313,22 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
             
             <RemoteCursor cursorDataRef={cursorDataRef} getPlayerColor={getPlayerColor} />
             <PhysicsApples newParticles={newParticles} />
+            {isDragging && selectionRect && !isSpectator && (
+              <div 
+                className="selection-box"
+                style={{
+                  position: 'absolute',
+                  left: Math.min(selectionRect.startX, selectionRect.endX),
+                  top: Math.min(selectionRect.startY, selectionRect.endY),
+                  width: Math.abs(selectionRect.endX - selectionRect.startX),
+                  height: Math.abs(selectionRect.endY - selectionRect.startY),
+                  backgroundColor: `${myColor}33`,
+                  border: `2px solid ${myColor}`
+                }}
+              />
+            )}
           </div>
         </div>
-        
-        {isDragging && selectionRect && !isSpectator && (
-          <div 
-            className="selection-box"
-            style={{
-              left: Math.min(selectionRect.startX, selectionRect.endX),
-              top: Math.min(selectionRect.startY, selectionRect.endY),
-              width: Math.abs(selectionRect.endX - selectionRect.startX),
-              height: Math.abs(selectionRect.endY - selectionRect.startY),
-              backgroundColor: `${myColor}33`,
-              border: `2px solid ${myColor}`
-            }}
-          />
-        )}
       </div>
       <div className="side-panel">
         <div className="score-display">{score}</div>
