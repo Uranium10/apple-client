@@ -33,6 +33,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
   const startPosRel = useRef({ x: 0, y: 0 });
   const applePositions = useRef([]);
   const poppedApplesRef = useRef(new Set());
+  const isInitialMountRef = useRef(true);
   
   // Throttle cursor sends to 20 FPS (50ms)
   const lastCursorTime = useRef(0);
@@ -42,6 +43,17 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
   useEffect(() => {
     if (board.every(a => !a.removed)) {
       poppedApplesRef.current.clear(); // Reset on new game
+    }
+
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      board.forEach(a => {
+        if (a.removed) {
+          poppedApplesRef.current.add(a.id);
+        }
+      });
+      setLocalBoard(board);
+      return;
     }
 
     const remoteRemovedParticles = [];
@@ -190,10 +202,17 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     const minY = Math.min(startPosRel.current.y, relY);
     const maxY = Math.max(startPosRel.current.y, relY);
 
+    // Expand hit box tolerance by 10px (50% of the 20px cell radius) for generous 50% hit detection.
+    // Computing these 4 boundaries once outside the loop ensures 0% performance overhead!
+    const hitMinX = minX - 10;
+    const hitMaxX = maxX + 10;
+    const hitMinY = minY - 10;
+    const hitMaxY = maxY + 10;
+
     const selected = [];
     applePositions.current.forEach(pos => {
       if (pos.removed) return;
-      if (pos.centerX >= minX && pos.centerX <= maxX && pos.centerY >= minY && pos.centerY <= maxY) {
+      if (pos.centerX >= hitMinX && pos.centerX <= hitMaxX && pos.centerY >= hitMinY && pos.centerY <= hitMaxY) {
         selected.push(pos.id);
       }
     });
