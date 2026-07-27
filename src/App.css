@@ -209,46 +209,29 @@
   100% { transform: scale(1); }
 }
 
-/* Global Portrait Warning (Forces landscape on mobile) */
-.global-portrait-warning {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: #27c15e;
-  z-index: 999999;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  color: white;
-  text-align: center;
-  padding: 20px;
-}
-
-.portrait-warning-content {
-  background-color: rgba(0, 0, 0, 0.4);
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-
-.portrait-warning-content h2 {
-  font-family: 'Jua', sans-serif;
-  font-size: 28px;
-  margin-bottom: 10px;
-}
-
-/* Force show portrait warning on mobile in portrait mode */
+/* Automatically rotate screen in mobile portrait mode to output horizontally */
 @media screen and (orientation: portrait) and (max-width: 950px) {
-  .global-portrait-warning {
-    display: flex !important;
+  body {
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .app-container {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: 100vh !important;
+    height: 100vw !important;
+    max-width: 100vh !important;
+    max-height: 100vw !important;
+    transform: translate(-50%, -50%) rotate(-90deg) !important;
+    transform-origin: center center !important;
+    overflow: hidden !important;
   }
 }
 
 /* Home Screen (Lobby) Mobile Landscape Compact Layout */
-@media screen and (max-height: 600px) and (max-width: 950px) and (orientation: landscape) {
+@media screen and (max-width: 950px) {
   .lobby {
     flex-direction: row;
     padding: 20px;

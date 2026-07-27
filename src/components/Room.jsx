@@ -234,7 +234,19 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   }, [isHost, clientName]);
 
   const handlePlayerJoined = useCallback((peerId, peerName) => {
-    setPlayers(prev => [...prev, { id: peerId, name: peerName, isReady: false }]);
+    setPlayers(prev => {
+      const next = [...prev, { id: peerId, name: peerName, isReady: false }];
+      // If I am ready, broadcast my ready state so the new player learns about it
+      const me = next.find(p => p.id === webrtcRef.current?.clientId);
+      if (me && me.isReady && webrtcRef.current) {
+        setTimeout(() => {
+          if (webrtcRef.current) {
+            webrtcRef.current.broadcast({ type: 'PLAYER_READY', isReady: true });
+          }
+        }, 600);
+      }
+      return next;
+    });
     setMessages(prev => [...prev, { type: 'system', text: `${peerName}님이 방에 입장했습니다.` }]);
 
     // If game has already started, host needs to sync state to the new player

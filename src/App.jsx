@@ -220,14 +220,6 @@ function App() {
           onLeave={handleLeaveRoom}
         />
       )}
-      
-      <div className="global-portrait-warning">
-        <div className="portrait-warning-content">
-          <span style={{ fontSize: '60px', display: 'block', marginBottom: '20px' }}>🔄</span>
-          <h2>기기를 가로로 회전해주세요!</h2>
-          <p>이 게임은 모바일 가로 모드에 최적화되어 있습니다.<br/>원활한 플레이를 위해 기기를 회전해주세요.</p>
-        </div>
-      </div>
     </>
   );
 }

@@ -527,7 +527,7 @@
 }
 
 /* Mobile Landscape Mode Fullscreen Optimization (Game Board) */
-@media screen and (max-height: 600px) and (max-width: 950px) and (orientation: landscape) {
+@media screen and (max-width: 950px) {
   .game-header,
   .game-sidebar,
   .dark-mode-toggle-btn {
@@ -563,7 +563,7 @@
 
 
 /* Mobile Landscape Mode Fullscreen Optimization (Waiting Room) */
-@media screen and (max-height: 600px) and (max-width: 950px) and (orientation: landscape) {
+@media screen and (max-width: 950px) {
   /* Only apply if not game-mode to avoid conflicting with the above rule */
   .room-container:not(.game-mode) .room-box {
     padding: 10px 20px;

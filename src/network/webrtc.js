@@ -227,6 +227,11 @@ export class WebRTCManager {
   }
 
   broadcast(message) {
+    if (message && message.type === 'PLAYER_READY') {
+      this.sendViaWS({ type: 'player-ready', isReady: message.isReady });
+    } else if (message && message.type === 'ROOM_CHAT') {
+      this.sendViaWS({ type: 'room-chat', text: message.text });
+    }
     const data = JSON.stringify(message);
     Object.keys(this.peers).forEach(peerId => {
       const channel = this.dataChannels[peerId];

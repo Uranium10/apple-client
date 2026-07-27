@@ -124,7 +124,7 @@
 }
 
 /* Mobile Landscape Fullscreen Optimization */
-@media screen and (max-height: 600px) and (max-width: 950px) and (orientation: landscape) {
+@media screen and (max-width: 950px) {
   .game-inner-screen {
     border-radius: 0 !important;
     border: none !important;
