@@ -8,7 +8,7 @@ const ICE_SERVERS = {
 };
 
 export class WebRTCManager {
-  constructor(serverUrl, clientName, onMessageCallback, onRoomInfo, onPlayerJoined, onPlayerLeft, onRoomFull, onRoomNotFound, onConnectionError) {
+  constructor(serverUrl, clientName, onMessageCallback, onRoomInfo, onPlayerJoined, onPlayerLeft, onRoomFull, onRoomNotFound, onConnectionError, onPeerConnected) {
     this.serverUrl = serverUrl;
     this.clientName = clientName;
     this.ws = null;
