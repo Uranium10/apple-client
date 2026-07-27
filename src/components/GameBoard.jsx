@@ -128,6 +128,10 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
         id: parseInt(apple.dataset.id),
         number: parseInt(apple.dataset.number),
         removed: apple.classList.contains('removed'),
+        left: bRect.left,
+        right: bRect.right,
+        top: bRect.top,
+        bottom: bRect.bottom,
         centerX: bRect.left + bRect.width / 2,
         centerY: bRect.top + bRect.height / 2
       };
@@ -178,7 +182,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     const selected = [];
     applePositions.current.forEach(pos => {
       if (pos.removed) return;
-      if (pos.centerX >= minX && pos.centerX <= maxX && pos.centerY >= minY && pos.centerY <= maxY) {
+      if (minX <= pos.right && maxX >= pos.left && minY <= pos.bottom && maxY >= pos.top) {
         selected.push(pos.id);
       }
     });
