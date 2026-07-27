@@ -170,7 +170,7 @@ function App() {
   }
 
   return (
-    <>
+    <div className="app-container">
       <button 
         className="leaderboard-toggle-btn"
         onClick={() => {
@@ -220,7 +220,7 @@ function App() {
           onLeave={handleLeaveRoom}
         />
       )}
-    </>
+    </div>
   );
 }
 
