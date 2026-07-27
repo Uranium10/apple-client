@@ -244,8 +244,10 @@ export class WebRTCManager {
   broadcast(message) {
     if (message && message.type === 'PLAYER_READY') {
       this.sendViaWS({ type: 'player-ready', isReady: message.isReady });
+      return;
     } else if (message && message.type === 'ROOM_CHAT') {
       this.sendViaWS({ type: 'room-chat', text: message.text });
+      return;
     }
     const data = JSON.stringify(message);
     Object.keys(this.peers).forEach(peerId => {

@@ -202,12 +202,12 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     const minY = Math.min(startPosRel.current.y, relY);
     const maxY = Math.max(startPosRel.current.y, relY);
 
-    // Expand hit box tolerance by 10px (50% of the 20px cell radius) for generous 50% hit detection.
+    // Expand hit box tolerance by 5px (25% of the 20px cell radius) for balanced hit detection.
     // Computing these 4 boundaries once outside the loop ensures 0% performance overhead!
-    const hitMinX = minX - 10;
-    const hitMaxX = maxX + 10;
-    const hitMinY = minY - 10;
-    const hitMaxY = maxY + 10;
+    const hitMinX = minX - 5;
+    const hitMaxX = maxX + 5;
+    const hitMinY = minY - 5;
+    const hitMaxY = maxY + 5;
 
     const selected = [];
     applePositions.current.forEach(pos => {
