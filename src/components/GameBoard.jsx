@@ -115,8 +115,8 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
       const boardHeight = rows * 40;
       
       const isMobile = window.innerWidth <= 950 || window.innerHeight <= 600;
-      const widthPadding = isMobile ? 40 : 100;
-      const heightPadding = isMobile ? 40 : 60;
+      const widthPadding = isMobile ? 20 : 100;
+      const heightPadding = isMobile ? 20 : 60;
       
       const availableWidth = innerScreenRef.current.clientWidth - widthPadding;
       const availableHeight = innerScreenRef.current.clientHeight - heightPadding;
@@ -352,7 +352,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
       <div className="side-panel">
         <div className="score-display">{score}</div>
         <div className="timer-track">
-          <div className="timer-fill" style={{ height: `${percentage}%` }}></div>
+          <div className="timer-fill" style={{ height: `${percentage}%`, '--timer-pct': `${percentage}%` }}></div>
         </div>
       </div>
     </div>

@@ -138,6 +138,45 @@
   .game-board {
     transform-origin: center center;
   }
+
+  .side-panel {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    width: auto;
+    height: auto;
+    flex-direction: row;
+    background: rgba(0, 0, 0, 0.65);
+    padding: 8px 16px;
+    border-radius: 20px;
+    z-index: 100;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  }
+  
+  .score-display {
+    margin-bottom: 0;
+    margin-right: 15px;
+    font-size: 20px;
+    color: #fff;
+  }
+  
+  .timer-track {
+    width: 100px;
+    height: 14px;
+    margin-bottom: 0;
+    border-left: none;
+    border-radius: 7px;
+    background-color: rgba(255, 255, 255, 0.2);
+    align-items: flex-start;
+  }
+  
+  .timer-fill {
+    height: 100% !important;
+    width: var(--timer-pct, 100%);
+    border-radius: 7px;
+  }
 }
 
 .selection-box {
