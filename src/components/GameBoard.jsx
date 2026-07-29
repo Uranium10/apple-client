@@ -352,7 +352,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
       <div className="side-panel">
         <div className="score-display">{score}</div>
         <div className="timer-track">
-          <div className="timer-fill" style={{ height: `${percentage}%`, '--timer-pct': `${percentage}%` }}></div>
+          <div className="timer-fill" style={{ height: `${percentage}%`, width: `${percentage}%` }}></div>
         </div>
       </div>
     </div>

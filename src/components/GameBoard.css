@@ -168,8 +168,9 @@
   
   .timer-fill {
     height: 100% !important;
-    width: var(--timer-pct, 100%);
+    /* width is driven by inline style */
     border-radius: 0;
+    transition: width 1s linear !important;
   }
 
   .score-display {
@@ -224,7 +225,8 @@
 }
 
 .timer-fill {
-  width: 100%;
+  width: 100% !important;
+  /* height is driven by inline style */
   background-color: #00cc00;
   transition: height 1s linear;
   box-shadow: 0 0 5px #00ff00;
