@@ -204,12 +204,12 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     const minY = Math.min(startPosRel.current.y, relY);
     const maxY = Math.max(startPosRel.current.y, relY);
 
-    // Expand hit box tolerance by 18px (almost the entire 20px cell radius) 
-    // so apples can be selected even if only a small part of them is included in the drag box.
-    const hitMinX = minX - 18;
-    const hitMaxX = maxX + 18;
-    const hitMinY = minY - 18;
-    const hitMaxY = maxY + 18;
+    // Expand hit box tolerance by 5px (25% of the 20px cell radius) for balanced hit detection.
+    // Computing these 4 boundaries once outside the loop ensures 0% performance overhead!
+    const hitMinX = minX - 5;
+    const hitMaxX = maxX + 5;
+    const hitMinY = minY - 5;
+    const hitMaxY = maxY + 5;
 
     const selected = [];
     applePositions.current.forEach(pos => {
