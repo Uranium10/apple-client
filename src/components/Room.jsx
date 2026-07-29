@@ -289,7 +289,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     if (cursorDataRef.current && cursorDataRef.current[peerId]) {
       delete cursorDataRef.current[peerId];
     }
-    
+
     setPlayers(prev => {
       const leftPlayer = prev.find(p => p.id === peerId);
       if (leftPlayer) {
@@ -310,10 +310,10 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setIsHost(true);
         setPlayers(prev => prev.map(p => p.id === newHostId ? { ...p, isReady: true } : p));
         setMessages(m => [...m, { type: 'system', text: `당신이 새로운 방장이 되었습니다.` }]);
-        
+
         setIsStarting(prev => {
           if (prev) {
-            webrtcRef.current.broadcast({ type: 'CANCEL_COUNTDOWN' });
+            webrtcRef.current.sendViaWS({ type: 'CANCEL_COUNTDOWN' });
             setStartCountdown(null);
             setMessages(m => [...m, { type: 'system', text: `방장 변경으로 게임 시작이 취소되었습니다.` }]);
             return false;
@@ -543,8 +543,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     const initialMsg = '3초 뒤 게임이 시작됩니다!';
     setMessages(prev => [...prev, { type: 'system', text: initialMsg }]);
     if (webrtcRef.current) {
-      webrtcRef.current.broadcast({ type: 'PREPARE_GAME', boardData: data });
-      webrtcRef.current.broadcast({ type: 'SYSTEM_MSG', text: initialMsg });
+      webrtcRef.current.sendViaWS({ type: 'PREPARE_GAME', boardData: data });
+      webrtcRef.current.sendViaWS({ type: 'SYSTEM_MSG', text: initialMsg });
     }
 
     const tick = () => {
@@ -553,8 +553,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setMessages(prev => [...prev, { type: 'system', text: msg }]);
         setStartCountdown(count);
         if (webrtcRef.current) {
-          webrtcRef.current.broadcast({ type: 'SYSTEM_MSG', text: msg });
-          webrtcRef.current.broadcast({ type: 'START_COUNTDOWN', count });
+          webrtcRef.current.sendViaWS({ type: 'SYSTEM_MSG', text: msg });
+          webrtcRef.current.sendViaWS({ type: 'START_COUNTDOWN', count });
         }
         count--;
         setTimeout(tick, 1000);
@@ -565,7 +565,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setStartCountdown(null);
         setPlayerScores({});
 
-        webrtcRef.current.broadcast({ type: 'GAME_START', boardData: data, playerScores: {} });
+        webrtcRef.current.sendViaWS({ type: 'GAME_START', boardData: data, playerScores: {} });
       }
     };
 
@@ -657,7 +657,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   if (gameStarted) {
     return (
       <div className={`game-screen ${isDarkMode ? 'dark-mode' : ''}`}>
-        <button 
+        <button
           className="dark-mode-toggle-btn"
           onClick={() => {
             setIsDarkMode(prev => {

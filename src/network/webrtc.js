@@ -119,6 +119,12 @@ export class WebRTCManager {
           this.onMessageCallback(message.clientId, { type: 'ROOM_CHAT', senderName: message.senderName, text: message.text });
         }
         break;
+
+      default:
+        if (this.onMessageCallback) {
+          this.onMessageCallback(sender || message.clientId, message);
+        }
+        break;
     }
   }
 
