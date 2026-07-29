@@ -123,6 +123,68 @@
   border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
 }
 
+
+.selection-box {
+  position: absolute;
+  background-color: rgba(135, 206, 235, 0.4);
+  border: 2px solid #00bfff;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 0 5px rgba(0, 191, 255, 0.5);
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 60px;
+  height: 100%;
+  padding-top: 10px;
+  padding-bottom: 20px;
+}
+
+.score-display {
+  font-size: 24px;
+  font-weight: bold;
+  color: #00aa00;
+  margin-bottom: 15px;
+  font-family: sans-serif;
+}
+
+.timer-track {
+  width: 10px;
+  flex: 1;
+  background-color: transparent;
+  border-left: 2px solid rgba(0,170,0,0.2);
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 20px;
+}
+
+.timer-fill {
+  background-color: #00cc00;
+  transition: width 1s linear, height 1s linear;
+  box-shadow: 0 0 5px #00ff00;
+  border-radius: 2px;
+}
+
+.danger-mode::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  animation: dangerPulse 0.5s ease-in-out infinite;
+  z-index: 50;
+}
+
+@keyframes dangerPulse {
+  0% { box-shadow: inset 0 0 0px rgba(231, 76, 60, 0); }
+  50% { box-shadow: inset 0 0 50px rgba(231, 76, 60, 0.8); }
+  100% { box-shadow: inset 0 0 0px rgba(231, 76, 60, 0); }
+}
+
 /* Mobile Landscape Fullscreen Optimization */
 @media screen and (max-width: 950px) {
   .game-inner-screen {
@@ -165,15 +227,6 @@
     background-color: rgba(0, 0, 0, 0.3);
     align-items: flex-start;
   }
-  
-  .timer-fill {
-    height: 100% !important;
-    width: 100% !important;
-    border-radius: 0;
-    transform: scaleX(var(--timer-pct, 1));
-    transform-origin: right; /* Shrinks towards physical bottom (nav bar), which is the left side in horizontal view */
-    transition: transform 1s linear !important;
-  }
 
   .score-display {
     position: absolute;
@@ -185,69 +238,4 @@
     text-shadow: 2px 2px 4px rgba(0,0,0,0.8), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
     font-weight: 900;
   }
-}
-
-.selection-box {
-  position: absolute;
-  background-color: rgba(135, 206, 235, 0.4);
-  border: 2px solid #00bfff;
-  border-radius: 4px;
-  pointer-events: none;
-  z-index: 1000;
-  box-shadow: 0 0 5px rgba(0, 191, 255, 0.5);
-}
-
-.side-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 60px;
-  height: 100%;
-  padding-top: 10px;
-  padding-bottom: 20px;
-}
-
-.score-display {
-  font-size: 24px;
-  font-weight: bold;
-  color: #00aa00;
-  margin-bottom: 15px;
-  font-family: sans-serif;
-}
-
-.timer-track {
-  width: 10px;
-  flex: 1;
-  background-color: transparent;
-  border-left: 2px solid rgba(0,170,0,0.2);
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  margin-bottom: 20px;
-}
-
-.timer-fill {
-  width: 100% !important;
-  height: 100% !important;
-  background-color: #00cc00;
-  transform: scaleY(var(--timer-pct, 1));
-  transform-origin: bottom; /* Shrinks downwards on desktop */
-  transition: transform 1s linear;
-  box-shadow: 0 0 5px #00ff00;
-  border-radius: 2px;
-}
-
-.danger-mode::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  pointer-events: none;
-  animation: dangerPulse 0.5s ease-in-out infinite;
-  z-index: 50;
-}
-
-@keyframes dangerPulse {
-  0% { box-shadow: inset 0 0 0px rgba(231, 76, 60, 0); }
-  50% { box-shadow: inset 0 0 50px rgba(231, 76, 60, 0.8); }
-  100% { box-shadow: inset 0 0 0px rgba(231, 76, 60, 0); }
 }

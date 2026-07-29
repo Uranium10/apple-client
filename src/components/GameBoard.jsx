@@ -26,6 +26,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
   const [currentSelection, setCurrentSelection] = useState([]);
   const [newParticles, setNewParticles] = useState([]);
   const [boardScale, setBoardScale] = useState(1);
+  const [isMobileView, setIsMobileView] = useState(false);
   
   const boardRef = useRef(null);
   const innerScreenRef = useRef(null);
@@ -128,6 +129,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
         newScale *= 0.88; // Slightly reduce scale on mobile so apples never touch screen edges or address bars
       }
       setBoardScale(newScale);
+      setIsMobileView(isMobile);
     };
     
     handleResize();
@@ -352,7 +354,13 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
       <div className="side-panel">
         <div className="score-display">{score}</div>
         <div className="timer-track">
-          <div className="timer-fill" style={{ '--timer-pct': percentage / 100 }}></div>
+          <div 
+            className="timer-fill" 
+            style={{ 
+              height: isMobileView ? '100%' : `${percentage}%`, 
+              width: isMobileView ? `${percentage}%` : '100%' 
+            }}
+          ></div>
         </div>
       </div>
     </div>
