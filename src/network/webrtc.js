@@ -1,11 +1,18 @@
 // webrtc.js
 // Handles Signaling (WebSocket) and P2P (WebRTC DataChannel)
+// Hybrid approach: critical game messages sent via BOTH P2P and WS relay for reliability
 
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
   ],
 };
+
+// Max number of recent message IDs to remember for deduplication
+const DEDUP_CACHE_SIZE = 200;
 
 export class WebRTCManager {
   constructor(serverUrl, clientName, onMessageCallback, onRoomInfo, onPlayerJoined, onPlayerLeft, onRoomFull, onRoomNotFound, onConnectionError, onPeerConnected) {
@@ -27,6 +34,32 @@ export class WebRTCManager {
     this.onPeerConnected = onPeerConnected;
     this.messageQueue = {}; // Queue for messages before channel opens
     this.connectionTimeout = null;
+
+    // Deduplication: track recently seen message IDs
+    this._seenMsgIds = new Set();
+    this._seenMsgIdsList = []; // ordered list for eviction
+    this._msgCounter = 0;
+  }
+
+  // Generate a unique message ID for deduplication
+  _generateMsgId() {
+    return `${this.clientId}_${Date.now()}_${this._msgCounter++}`;
+  }
+
+  // Check if we've already processed this message; if not, mark it as seen
+  _isDuplicate(msgId) {
+    if (!msgId) return false; // No msgId means not a reliable message, always process
+    if (this._seenMsgIds.has(msgId)) return true;
+    
+    this._seenMsgIds.add(msgId);
+    this._seenMsgIdsList.push(msgId);
+    
+    // Evict old entries to prevent memory leak
+    while (this._seenMsgIdsList.length > DEDUP_CACHE_SIZE) {
+      const old = this._seenMsgIdsList.shift();
+      this._seenMsgIds.delete(old);
+    }
+    return false;
   }
 
   connect(roomId, isHost = false) {
@@ -121,6 +154,12 @@ export class WebRTCManager {
         break;
 
       default:
+        // Messages relayed via WS server (from broadcastReliable's WS path)
+        // Check for deduplication
+        if (message._msgId && this._isDuplicate(message._msgId)) {
+          // Already received this message via P2P DataChannel, skip
+          return;
+        }
         if (this.onMessageCallback) {
           this.onMessageCallback(sender || message.clientId, message);
         }
@@ -145,6 +184,15 @@ export class WebRTCManager {
           target: peerId,
           candidate: event.candidate
         }));
+      }
+    };
+
+    // Monitor ICE connection state for debugging
+    peer.oniceconnectionstatechange = () => {
+      const state = peer.iceConnectionState;
+      console.log(`[ICE] Peer ${peerId}: ${state}`);
+      if (state === 'failed') {
+        console.warn(`[ICE] P2P connection FAILED with ${peerId}. Messages will be relayed via WS server.`);
       }
     };
 
@@ -196,6 +244,13 @@ export class WebRTCManager {
 
     dataChannel.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      
+      // Check for deduplication (reliable messages have _msgId)
+      if (data._msgId && this._isDuplicate(data._msgId)) {
+        // Already received this message via WS relay, skip
+        return;
+      }
+      
       if (this.onMessageCallback) {
         this.onMessageCallback(peerId, data);
       }
@@ -247,6 +302,7 @@ export class WebRTCManager {
     }
   }
 
+  // Send via P2P DataChannel only (for high-frequency, loss-tolerant messages like cursors)
   broadcast(message) {
     if (message && message.type === 'PLAYER_READY') {
       this.sendViaWS({ type: 'player-ready', isReady: message.isReady });
@@ -265,5 +321,32 @@ export class WebRTCManager {
         this.messageQueue[peerId].push(data);
       }
     });
+  }
+
+  // Send via BOTH P2P DataChannel AND WS server relay (for critical game messages)
+  // Includes _msgId for deduplication on the receiving end
+  broadcastReliable(message) {
+    const msgId = this._generateMsgId();
+    const messageWithId = { ...message, _msgId: msgId };
+    
+    // Mark our own msgId as seen so we don't process the WS echo
+    this._isDuplicate(msgId);
+
+    // Path 1: P2P DataChannel (fast, but may fail for some peers)
+    const data = JSON.stringify(messageWithId);
+    Object.keys(this.peers).forEach(peerId => {
+      const channel = this.dataChannels[peerId];
+      if (channel && channel.readyState === 'open') {
+        try {
+          channel.send(data);
+        } catch (e) {
+          console.warn(`[RELIABLE] P2P send failed to ${peerId}:`, e);
+        }
+      }
+      // Don't queue for reliable messages - WS relay is the fallback
+    });
+
+    // Path 2: WS server relay (reliable fallback, works even if P2P fails)
+    this.sendViaWS(messageWithId);
   }
 }

@@ -97,7 +97,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       setTimeRemaining(newRemaining);
 
       if (isHostRef.current && webrtcRef.current) {
-        webrtcRef.current.broadcast({ type: 'TIME_UPDATE', timeRemaining: newRemaining });
+        webrtcRef.current.broadcastReliable({ type: 'TIME_UPDATE', timeRemaining: newRemaining });
       }
 
       if (newRemaining <= 0) {
@@ -108,7 +108,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           setGameOverVotes({});
           setGameOverTimeLeft(10);
           if (webrtcRef.current) {
-            webrtcRef.current.broadcast({ type: 'GAME_OVER', playerScores: playerScoresRef.current });
+            webrtcRef.current.broadcastReliable({ type: 'GAME_OVER', playerScores: playerScoresRef.current });
           }
 
           const playerNames = playersRef.current.map(p => p.name);
@@ -159,7 +159,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       if ((totalVotes >= players.length && players.length > 0) || gameOverTimeLeft === 0) {
         clearInterval(gameOverTimerRef.current);
 
-        webrtcRef.current.broadcast({ type: 'CONCLUDE_VOTING', votes: gameOverVotes });
+        webrtcRef.current.broadcastReliable({ type: 'CONCLUDE_VOTING', votes: gameOverVotes });
 
         if (gameOverVotes[hostId] === 'LEAVE') {
           onLeave();
@@ -181,7 +181,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           setIsGameOver(false);
           setPlayers(prev => prev.map(p => ({ ...p, isReady: p.id === hostId })));
           if (webrtcRef.current) {
-            webrtcRef.current.broadcast({ type: 'RETURN_TO_LOBBY' });
+            webrtcRef.current.broadcastReliable({ type: 'RETURN_TO_LOBBY' });
           }
         }
       }
@@ -314,7 +314,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
         setIsStarting(prev => {
           if (prev) {
-            webrtcRef.current.broadcast({ type: 'CANCEL_COUNTDOWN' });
+            webrtcRef.current.broadcastReliable({ type: 'CANCEL_COUNTDOWN' });
             setStartCountdown(null);
             setMessages(m => [...m, { type: 'system', text: `방장 변경으로 게임 시작이 취소되었습니다.` }]);
             return false;
@@ -339,7 +339,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
   const handleKickPlayer = (targetId) => {
     if (!isHost) return;
-    webrtcRef.current.broadcast({ type: 'KICK_PLAYER', targetId });
+    webrtcRef.current.broadcastReliable({ type: 'KICK_PLAYER', targetId });
     // Also force them out locally just in case
     handlePlayerLeft(targetId);
   };
@@ -421,7 +421,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           };
           setPlayerScores(newScores);
 
-          webrtcRef.current.broadcast({
+          webrtcRef.current.broadcastReliable({
             type: 'APPLES_REMOVED',
             removedIds: data.removedIds,
             points: data.points,
@@ -544,8 +544,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     const initialMsg = '3초 뒤 게임이 시작됩니다!';
     setMessages(prev => [...prev, { type: 'system', text: initialMsg }]);
     if (webrtcRef.current) {
-      webrtcRef.current.broadcast({ type: 'PREPARE_GAME', boardData: data });
-      webrtcRef.current.broadcast({ type: 'SYSTEM_MSG', text: initialMsg });
+      webrtcRef.current.broadcastReliable({ type: 'PREPARE_GAME', boardData: data });
+      webrtcRef.current.broadcastReliable({ type: 'SYSTEM_MSG', text: initialMsg });
     }
 
     const tick = () => {
@@ -554,8 +554,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setMessages(prev => [...prev, { type: 'system', text: msg }]);
         setStartCountdown(count);
         if (webrtcRef.current) {
-          webrtcRef.current.broadcast({ type: 'SYSTEM_MSG', text: msg });
-          webrtcRef.current.broadcast({ type: 'START_COUNTDOWN', count });
+          webrtcRef.current.broadcastReliable({ type: 'SYSTEM_MSG', text: msg });
+          webrtcRef.current.broadcastReliable({ type: 'START_COUNTDOWN', count });
         }
         count--;
         setTimeout(tick, 1000);
@@ -566,7 +566,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setStartCountdown(null);
         setPlayerScores({});
 
-        webrtcRef.current.broadcast({ type: 'GAME_START', boardData: data, playerScores: {} });
+        webrtcRef.current.broadcastReliable({ type: 'GAME_START', boardData: data, playerScores: {} });
       }
     };
 
@@ -589,7 +589,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       setPlayerScores(newScores);
 
       if (webrtcRef.current) {
-        webrtcRef.current.broadcast({
+        webrtcRef.current.broadcastReliable({
           type: 'APPLES_REMOVED',
           removedIds,
           points,
@@ -600,7 +600,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     } else {
       // Client sends request to host
       if (webrtcRef.current) {
-        webrtcRef.current.broadcast({
+        webrtcRef.current.broadcastReliable({
           type: 'REQUEST_REMOVE',
           removedIds,
           points,
@@ -736,7 +736,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
                 }
                 return next;
               });
-              webrtcRef.current.broadcast({ type: 'VOTE_CAST', vote });
+              webrtcRef.current.broadcastReliable({ type: 'VOTE_CAST', vote });
             }}
             onLeave={onLeave}
             myId={webrtcRef.current?.clientId}
