@@ -8,7 +8,7 @@ import './Room.css';
 
 const GAME_DURATION = 120;
 
-const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerUrl, onLeave }) => {
+const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerUrl, onLeave, onGameStateChange }) => {
   const [isHost, setIsHost] = useState(initialIsHost);
   const [hostId, setHostId] = useState(null);
   const [players, setPlayers] = useState([]); // [{id, name, isReady}]
@@ -52,6 +52,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   useEffect(() => { playerScoresRef.current = playerScores; }, [playerScores]);
   useEffect(() => { gameStartedRef.current = gameStarted; }, [gameStarted]);
   useEffect(() => { timeRemainingRef.current = timeRemaining; }, [timeRemaining]);
+  useEffect(() => { if (onGameStateChange) onGameStateChange(gameStarted); }, [gameStarted, onGameStateChange]);
 
   useEffect(() => {
     if (chatEndRef.current) {

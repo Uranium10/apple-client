@@ -279,5 +279,12 @@
   .game-screen header {
     display: none !important;
   }
+  
+  /* Hide leaderboard and its toggle button during gameplay on mobile */
+  .game-active .leaderboard-toggle-btn {
+    display: none !important;
+  }
+  .game-active .leaderboard-sidebar {
+    display: none !important;
+  }
 }
-

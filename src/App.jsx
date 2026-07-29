@@ -45,6 +45,7 @@ function App() {
   const [hasNewLeaderboardData, setHasNewLeaderboardData] = useState(false);
 
   const [isDuplicate, setIsDuplicate] = useState(false);
+  const [isGameRunning, setIsGameRunning] = useState(false);
 
   useEffect(() => {
     const channel = new BroadcastChannel('apple_game_channel');
@@ -170,7 +171,7 @@ function App() {
   }
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${isGameRunning ? 'game-active' : ''}`}>
       <button 
         className="leaderboard-toggle-btn"
         onClick={() => {
@@ -218,6 +219,7 @@ function App() {
           serverUrl={getWebSocketUrl(SIGNALING_SERVER_URL)}
           apiServerUrl={SIGNALING_SERVER_URL}
           onLeave={handleLeaveRoom}
+          onGameStateChange={setIsGameRunning}
         />
       )}
     </div>
