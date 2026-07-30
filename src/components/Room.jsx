@@ -23,7 +23,6 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   const [score, setScore] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(GAME_DURATION);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [isSpectator, setIsSpectator] = useState(false);
   const [spectatingId, setSpectatingId] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('apple_dark_mode') === 'true';
