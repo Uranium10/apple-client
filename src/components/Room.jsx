@@ -113,16 +113,31 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
             webrtcRef.current.broadcastReliable({ type: 'GAME_OVER', playerScores: playerScoresRef.current });
           }
 
-          const playerNames = playersRef.current.map(p => p.name);
-          fetch(`${apiServerUrl || serverUrl.replace('ws://', 'http://').replace('wss://', 'https://')}/api/leaderboard`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              playerCount: playersRef.current.length,
-              playerNames: playerNames,
-              score: scoreRef.current
-            })
-          }).catch(console.error);
+          if (gameMode === 'comp') {
+            playersRef.current.forEach(p => {
+              const playerScore = playerScoresRef.current[p.id] || 0;
+              fetch(`${apiServerUrl || serverUrl.replace('ws://', 'http://').replace('wss://', 'https://')}/api/leaderboard`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  playerCount: 1,
+                  playerNames: [p.name],
+                  score: playerScore
+                })
+              }).catch(console.error);
+            });
+          } else {
+            const playerNames = playersRef.current.map(p => p.name);
+            fetch(`${apiServerUrl || serverUrl.replace('ws://', 'http://').replace('wss://', 'https://')}/api/leaderboard`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                playerCount: playersRef.current.length,
+                playerNames: playerNames,
+                score: scoreRef.current
+              })
+            }).catch(console.error);
+          }
         }
       }
     };
@@ -489,14 +504,11 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
               }
             };
           });
-          if (data.playerScores) {
-            setPlayerScores(data.playerScores);
-          } else if (data.scorerId) {
-            setPlayerScores(prev => ({
-              ...prev,
-              [data.scorerId]: (prev[data.scorerId] || 0) + data.points
-            }));
-          }
+          
+          setPlayerScores(prev => ({
+            ...prev,
+            [data.scorerId]: (prev[data.scorerId] || 0) + data.points
+          }));
         }
         break;
       case 'TIME_UPDATE':
@@ -583,7 +595,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     let count = 3;
 
     // Generate new board immediately for preview
-    const data = generateBoard(players.length);
+    const data = generateBoard(gameMode === 'comp' ? 1 : players.length);
     setBoardData(data);
     setScore(0);
     // Don't set timeRemaining to GAME_DURATION yet, so timer doesn't show 120s running.
@@ -731,7 +743,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   const allReady = players.every(p => p.isReady);
 
   if (gameStarted) {
-    return (
+    const gameScreenContent = (
       <div className={`game-screen ${isDarkMode ? 'dark-mode' : ''}`}>
         <button
           className="dark-mode-toggle-btn"
@@ -777,27 +789,20 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
         {boardData && (
           <GameBoard
+            key={gameMode === 'comp' ? 'comp-board' : 'coop-board'}
             board={boardData.board}
             size={boardData.size}
             onApplesRemoved={handleApplesRemoved}
-            sendCursorData={handleCursorData}
+            sendCursorData={gameMode === 'comp' ? null : handleCursorData}
             isGameOver={isGameOver || isStarting}
             score={score}
             timeRemaining={timeRemaining}
             totalTime={GAME_DURATION}
             myColor={getPlayerColor(webrtcRef.current?.clientId)}
             isSpectator={isSpectator}
-            cursorDataRef={cursorDataRef}
+            cursorDataRef={gameMode === 'comp' ? { current: {} } : cursorDataRef}
             getPlayerColor={getPlayerColor}
-          />
-        )}
-
-        {gameMode === 'comp' && (
-          <OpponentsBoard 
-            players={players} 
-            myId={webrtcRef.current?.clientId} 
-            opponentsState={opponentsState} 
-            initialBoard={boardDataRef.current} 
+            hideCursors={gameMode === 'comp'}
           />
         )}
 

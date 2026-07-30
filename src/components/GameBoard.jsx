@@ -19,7 +19,7 @@ const Apple = memo(({ id, number, removed, isSelected, myColor }) => (
   </div>
 ));
 
-const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, score, timeRemaining, totalTime, myColor = 'red', isSpectator = false, cursorDataRef, getPlayerColor }) => {
+const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, score, timeRemaining, totalTime, myColor = 'red', isSpectator = false, cursorDataRef, getPlayerColor, hideCursors = false }) => {
   const [localBoard, setLocalBoard] = useState(board);
   const [isDragging, setIsDragging] = useState(false);
   const [selectionRect, setSelectionRect] = useState(null);
@@ -332,7 +332,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
               />
             ))}
             
-            <RemoteCursor cursorDataRef={cursorDataRef} getPlayerColor={getPlayerColor} />
+            {!hideCursors && <RemoteCursor cursorDataRef={cursorDataRef} getPlayerColor={getPlayerColor} />}
             <PhysicsApples newParticles={newParticles} />
             {isDragging && selectionRect && !isSpectator && (
               <div 
