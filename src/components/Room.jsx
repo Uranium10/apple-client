@@ -534,6 +534,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setTimeRemaining(GAME_DURATION);
         setIsGameOver(false);
         setPlayerScores({});
+        setOpponentsState({});
         if (!isHostRef.current) setBoardData(data.boardData);
         break;
       case 'VOTE_CAST':
@@ -598,6 +599,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       setBoardData(data);
       setScore(0);
       setPlayerScores({});
+      setOpponentsState({});
       setTimeRemaining(GAME_DURATION);
       setGameStarted(true);
       setIsStarting(false);
@@ -611,6 +613,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     const data = generateBoard(gameMode === 'comp' ? 1 : players.length);
     setBoardData(data);
     setScore(0);
+    setPlayerScores({});
+    setOpponentsState({});
     // Don't set timeRemaining to GAME_DURATION yet, so timer doesn't show 120s running.
     // Or we can set it to GAME_DURATION, since the timer worker won't run until isStarting is false!
     setTimeRemaining(GAME_DURATION);
@@ -639,6 +643,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setIsStarting(false);
         setStartCountdown(null);
         setPlayerScores({});
+        setOpponentsState({});
 
         webrtcRef.current.broadcastReliable({ type: 'GAME_START', boardData: data, playerScores: {} });
       }
