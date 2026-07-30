@@ -1,23 +1,51 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
+
+const POOL_SIZE = 40;
 
 const PhysicsApples = ({ newParticles }) => {
-  const [particles, setParticles] = useState([]);
   const requestRef = useRef(null);
-  const particleRefs = useRef({});
-  const stateRef = useRef([]);
+  const particleRefs = useRef([]);
+  // activeParticles stores the physics state of currently animating particles
+  const activeParticlesRef = useRef([]);
+
+  // Initialize pool structure
+  const pool = useMemo(() => Array.from({ length: POOL_SIZE }).map((_, i) => ({ id: i })), []);
 
   useEffect(() => {
     if (newParticles && newParticles.length > 0) {
-      const fresh = newParticles.map(p => ({
-        ...p,
-        x: 0,
-        y: 0,
-        rotation: 0
-      }));
+      // Find available DOM elements in the pool
+      let assignedCount = 0;
       
-      const combined = [...stateRef.current, ...fresh];
-      stateRef.current = combined;
-      setParticles(combined); // Trigger React render to create new DOM elements
+      const fresh = newParticles.map(p => {
+        // Find a free slot in the pool (a slot not currently in activeParticlesRef)
+        let poolIndex = -1;
+        for (let i = 0; i < POOL_SIZE; i++) {
+          if (!activeParticlesRef.current.some(ap => ap.poolIndex === i)) {
+            poolIndex = i;
+            break;
+          }
+        }
+        
+        // If pool is full, just overwrite the oldest one (fallback)
+        if (poolIndex === -1) poolIndex = Math.floor(Math.random() * POOL_SIZE);
+
+        const el = particleRefs.current[poolIndex];
+        if (el) {
+          el.style.opacity = 1;
+          el.innerText = p.number;
+          el.style.transform = `translate(${p.startX}px, ${p.startY}px) rotate(0deg)`;
+        }
+
+        return {
+          ...p,
+          x: 0,
+          y: 0,
+          rotation: 0,
+          poolIndex
+        };
+      });
+      
+      activeParticlesRef.current = [...activeParticlesRef.current, ...fresh];
       
       if (!requestRef.current) {
         requestRef.current = requestAnimationFrame(updatePhysics);
@@ -29,32 +57,36 @@ const PhysicsApples = ({ newParticles }) => {
     let active = false;
     const nextState = [];
     
-    for (let p of stateRef.current) {
+    for (let p of activeParticlesRef.current) {
       p.vy += 0.8; // Gravity
       p.x += p.vx;
       p.y += p.vy;
       p.rotation += p.vr;
+      
+      const el = particleRefs.current[p.poolIndex];
       
       // Keep if still roughly on screen (y goes down)
       if (p.startY + p.y < window.innerHeight + 500) {
         nextState.push(p);
         active = true;
         
-        const el = particleRefs.current[p.uid];
         if (el) {
           el.style.transform = `translate(${p.startX + p.x}px, ${p.startY + p.y}px) rotate(${p.rotation}deg)`;
+        }
+      } else {
+        // Mark as free by hiding
+        if (el) {
+          el.style.opacity = 0;
         }
       }
     }
     
-    stateRef.current = nextState;
+    activeParticlesRef.current = nextState;
     
     if (active) {
       requestRef.current = requestAnimationFrame(updatePhysics);
     } else {
       requestRef.current = null;
-      particleRefs.current = {};
-      setParticles([]); // Clear DOM elements when all are off-screen
     }
   };
 
@@ -66,10 +98,10 @@ const PhysicsApples = ({ newParticles }) => {
 
   return (
     <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 100, overflow: 'visible' }}>
-      {particles.map(p => (
+      {pool.map((p, i) => (
         <div
-          key={p.uid}
-          ref={el => particleRefs.current[p.uid] = el}
+          key={p.id}
+          ref={el => particleRefs.current[i] = el}
           style={{
             position: 'absolute',
             top: 0,
@@ -78,7 +110,7 @@ const PhysicsApples = ({ newParticles }) => {
             height: '38px',
             marginLeft: '-19px',
             marginTop: '-19px',
-            transform: `translate(${p.startX}px, ${p.startY}px) rotate(0deg)`,
+            opacity: 0, // Hidden initially
             backgroundImage: "url('/apple.png')",
             backgroundSize: 'contain',
             backgroundPosition: 'center',
@@ -92,9 +124,7 @@ const PhysicsApples = ({ newParticles }) => {
             fontFamily: '"Pretendard", sans-serif',
             willChange: 'transform'
           }}
-        >
-          {p.number}
-        </div>
+        />
       ))}
     </div>
   );
