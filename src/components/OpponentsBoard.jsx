@@ -1,7 +1,37 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import './OpponentsBoard.css';
 
-const OpponentsBoard = ({ players, myId, opponentsState, initialBoard }) => {
+// Separate, memoized component for each opponent's mini board
+// It will only re-render if boardStructure or removedIds array REFERENCE changes
+const MiniBoard = memo(({ boardStructure, removedIds }) => {
+  // Convert array to Set for O(1) lookups instead of O(N) array includes
+  const removedSet = useMemo(() => new Set(removedIds), [removedIds]);
+
+  return (
+    <div className="mini-board">
+      {boardStructure.map((appleId) => {
+        const isRemoved = removedSet.has(appleId);
+        return (
+          <div 
+            key={appleId} 
+            className={`mini-apple ${isRemoved ? 'removed' : ''}`}
+            style={{ backgroundColor: isRemoved ? 'transparent' : '#ff4757' }}
+          />
+        );
+      })}
+    </div>
+  );
+});
+
+// Memoize the entire OpponentsBoard to avoid re-rendering when the local game state (like timeRemaining) changes
+const OpponentsBoard = memo(({ players, myId, opponentsState, initialBoard }) => {
+  
+  // Cache the board structure (array of just the IDs) so we don't depend on initialBoard.board changing
+  const boardStructure = useMemo(() => {
+    if (!initialBoard || !initialBoard.board) return [];
+    return initialBoard.board.map(a => a.id);
+  }, [initialBoard?.board?.length]);
+
   const opponents = useMemo(() => {
     return players
       .filter(p => p.id !== myId)
@@ -35,23 +65,12 @@ const OpponentsBoard = ({ players, myId, opponentsState, initialBoard }) => {
               <span className="opponent-score">{opp.score}점</span>
             </div>
             
-            <div className="mini-board">
-              {initialBoard && initialBoard.board && initialBoard.board.map((apple, i) => {
-                const isRemoved = opp.removedIds.includes(apple.id);
-                return (
-                  <div 
-                    key={apple.id} 
-                    className={`mini-apple ${isRemoved ? 'removed' : ''}`}
-                    style={{ backgroundColor: isRemoved ? 'transparent' : '#ff4757' }}
-                  />
-                );
-              })}
-            </div>
+            <MiniBoard boardStructure={boardStructure} removedIds={opp.removedIds} />
           </div>
         ))}
       </div>
     </div>
   );
-};
+});
 
 export default OpponentsBoard;
