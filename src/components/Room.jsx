@@ -451,8 +451,9 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         if (isHostRef.current && boardDataRef.current) {
           const scorerId = data.scorerId || peerId;
           // Force apply removal to prevent sync desyncs
+          const removedSet = new Set(data.removedIds);
           const newBoard = boardDataRef.current.board.map(apple =>
-            data.removedIds.includes(apple.id) ? { ...apple, removed: true } : apple
+            removedSet.has(apple.id) ? { ...apple, removed: true } : apple
           );
           setBoardData(prev => ({ ...prev, board: newBoard }));
           setScore(prev => prev + data.points);
@@ -476,8 +477,9 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         if (gameModeRef.current === 'coop') {
           setBoardData(prev => {
             if (!prev) return prev;
+            const removedSet = new Set(data.removedIds);
             const newBoard = prev.board.map(apple => {
-              if (data.removedIds.includes(apple.id)) {
+              if (removedSet.has(apple.id)) {
                 return { ...apple, removed: true };
               }
               return apple;
@@ -647,8 +649,9 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     
     if (gameMode === 'coop') {
       if (isHost) {
+        const removedSet = new Set(removedIds);
         const newBoard = boardData.board.map(apple =>
-          removedIds.includes(apple.id) ? { ...apple, removed: true } : apple
+          removedSet.has(apple.id) ? { ...apple, removed: true } : apple
         );
         setBoardData(prev => ({ ...prev, board: newBoard }));
         setScore(prev => prev + points);
@@ -681,8 +684,9 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       }
     } else {
       // Comp or Solo mode
+      const removedSet = new Set(removedIds);
       const newBoard = boardData.board.map(apple =>
-        removedIds.includes(apple.id) ? { ...apple, removed: true } : apple
+        removedSet.has(apple.id) ? { ...apple, removed: true } : apple
       );
       setBoardData(prev => ({ ...prev, board: newBoard }));
       setScore(prev => prev + points);
