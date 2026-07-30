@@ -27,6 +27,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
   const [newParticles, setNewParticles] = useState([]);
   const [boardScale, setBoardScale] = useState(1);
   const [isMobileView, setIsMobileView] = useState(false);
+  const rafRef = useRef(null);
   
   const boardRef = useRef(null);
   const innerScreenRef = useRef(null);
@@ -195,12 +196,6 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
 
     if (!isDragging) return;
     
-    setSelectionRect(prev => prev ? ({
-      ...prev,
-      endX: relX,
-      endY: relY
-    }) : null);
-
     // Calculate current selection in unscaled board coordinates
     const minX = Math.min(startPosRel.current.x, relX);
     const maxX = Math.max(startPosRel.current.x, relX);
@@ -220,12 +215,23 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
         selected.push(pos.id);
       }
     });
-    setCurrentSelection(selected);
+
+    // Throttle React state updates to screen refresh rate (e.g., 60fps) to prevent extreme lag from high polling rate mice
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      setSelectionRect(prev => prev ? ({
+        ...prev,
+        endX: relX,
+        endY: relY
+      }) : null);
+      setCurrentSelection(selected);
+    });
   };
 
   const handleMouseUp = (e) => {
     if (!isDragging || isGameOver) return;
     setIsDragging(false);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     
     if (sendCursorData && boardRef.current) {
       const boardRect = boardRef.current.getBoundingClientRect();
