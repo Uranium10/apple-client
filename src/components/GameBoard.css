@@ -83,11 +83,7 @@
 .apple.removed {
   opacity: 0;
   pointer-events: none;
-}
-
-.apple.removed::before {
-  filter: none;
-  mix-blend-mode: normal;
+  transition: none;
 }
 
 .apple.selected::after {
