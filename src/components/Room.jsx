@@ -73,6 +73,26 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     }
   }, [messages]);
 
+  // Auto-switch spectator target if current target leaves or is unset
+  useEffect(() => {
+    if (isSpectator) {
+      const isCurrentTargetValid = spectatingId && players.some(p => p.id === spectatingId);
+      if (!isCurrentTargetValid) {
+        const activeOpponents = players.filter(p => opponentsState[p.id] !== undefined);
+        if (activeOpponents.length > 0) {
+          const topPlayer = activeOpponents.reduce((prev, current) => {
+            const scorePrev = opponentsState[prev.id]?.score || 0;
+            const scoreCurrent = opponentsState[current.id]?.score || 0;
+            return scoreCurrent > scorePrev ? current : prev;
+          });
+          setSpectatingId(topPlayer.id);
+        } else {
+          setSpectatingId(null);
+        }
+      }
+    }
+  }, [players, isSpectator, spectatingId, opponentsState]);
+
   const COLORS = ['#ff4757', '#1e90ff', '#2ed573', '#ffa502', '#3742fa', '#ff6b81'];
 
   const getPlayerColor = (playerId) => {
