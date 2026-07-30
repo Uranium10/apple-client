@@ -239,18 +239,18 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     });
 
     if (sum === 10) {
-      // Valid selection
+      // Valid selection — use Set for O(1) lookup
+      const selSet = new Set(currentSelection);
       const removedParticles = [];
       const cols = size.width || size.cols;
 
       const newBoard = localBoard.map(apple => {
-        if (currentSelection.includes(apple.id)) {
+        if (selSet.has(apple.id)) {
           if (!poppedApplesRef.current.has(apple.id)) {
             poppedApplesRef.current.add(apple.id);
             
             const col = apple.id % cols;
             const row = Math.floor(apple.id / cols);
-            // Position relative to game-board (unscaled)
             const startX = col * 40 + 20;
             const startY = row * 40 + 20;
 

@@ -43,6 +43,7 @@
   display: grid;
   gap: 1px;
   position: relative;
+  will-change: transform;
 }
 
 .apple {
@@ -59,8 +60,8 @@
   cursor: crosshair;
   color: white;
   position: relative;
-  transition: opacity 0.2s, transform 0.1s;
   z-index: 1;
+  contain: layout style paint;
 }
 
 .apple::before {
@@ -71,8 +72,6 @@
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-  mix-blend-mode: multiply;
-  filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.5));
   z-index: -1;
 }
 
