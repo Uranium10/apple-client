@@ -46,6 +46,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   const playerScoresRef = useRef(playerScores);
   const gameStartedRef = useRef(gameStarted);
   const timeRemainingRef = useRef(timeRemaining);
+  const gameModeRef = useRef(gameMode);
 
   useEffect(() => { isHostRef.current = isHost; }, [isHost]);
   useEffect(() => { boardDataRef.current = boardData; }, [boardData]);
@@ -54,6 +55,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   useEffect(() => { playerScoresRef.current = playerScores; }, [playerScores]);
   useEffect(() => { gameStartedRef.current = gameStarted; }, [gameStarted]);
   useEffect(() => { timeRemainingRef.current = timeRemaining; }, [timeRemaining]);
+  useEffect(() => { gameModeRef.current = gameMode; }, [gameMode]);
   useEffect(() => { if (onGameStateChange) onGameStateChange(gameStarted); }, [gameStarted, onGameStateChange]);
 
   useEffect(() => {
@@ -279,6 +281,14 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   }, [clientName]);
 
   const handlePlayerJoined = useCallback((peerId, peerName) => {
+    // Enforce 4-player limit for coop mode on the host side
+    if (isHostRef.current && gameModeRef.current === 'coop' && playersRef.current.length >= 4) {
+      if (webrtcRef.current) {
+        webrtcRef.current.sendTo(peerId, { type: 'KICK_ROOM_FULL' });
+      }
+      return;
+    }
+
     setPlayers(prev => {
       if (prev.some(p => p.id === peerId)) return prev;
       const next = [...prev, { id: peerId, name: peerName, isReady: false }];
@@ -429,6 +439,10 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setIsSpectator(false);
         setPlayerScores(data.playerScores || {});
         setOpponentsState({});
+        break;
+      case 'KICK_ROOM_FULL':
+        alert("협동 모드는 최대 4명까지만 입장 가능합니다.");
+        onLeave();
         break;
       case 'BOARD_SYNC':
         if (!isHostRef.current) {
