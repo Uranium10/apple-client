@@ -863,15 +863,17 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     );
     
     const gameScreenContent = gameMode === 'comp' ? (
-      <div className="game-screen-wrapper" style={{ display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-        <OpponentsBoard 
-          players={players} 
-          myId={webrtcRef.current?.clientId || 'solo-player'} 
-          opponentsState={opponentsState} 
-          initialBoard={boardData} 
-        />
+      <>
+        <div style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
+          <OpponentsBoard 
+            players={players} 
+            myId={webrtcRef.current?.clientId || 'solo-player'} 
+            opponentsState={opponentsState} 
+            initialBoard={boardData} 
+          />
+        </div>
         {coreGameScreen}
-      </div>
+      </>
     ) : coreGameScreen;
 
     return gameScreenContent;
