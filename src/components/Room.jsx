@@ -270,15 +270,18 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     };
   }, []);
 
-  const handleRoomInfo = useCallback((roomPlayers, receivedHostId) => {
+  const handleRoomInfo = useCallback((roomPlayers, receivedHostId, receivedGameMode) => {
     setHostId(receivedHostId);
+    if (receivedGameMode && receivedGameMode !== gameModeRef.current) {
+      setGameMode(receivedGameMode);
+    }
     if (!isHostRef.current) {
       setPlayers([
         ...roomPlayers.map(p => ({ id: p.id, name: p.name, isReady: false })),
         { id: webrtcRef.current?.clientId || 'me', name: clientName, isReady: false }
       ]);
     }
-  }, [clientName]);
+  }, [clientName, setGameMode]);
 
   const handlePlayerJoined = useCallback((peerId, peerName) => {
     setPlayers(prev => {

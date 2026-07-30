@@ -110,7 +110,7 @@ export class WebRTCManager {
         break;
 
       case 'room-info':
-        if (this.onRoomInfo) this.onRoomInfo(players, hostId);
+        if (this.onRoomInfo) this.onRoomInfo(players, hostId, message.gameMode);
         players.forEach(p => {
           this.createPeerConnection(p.id, true);
         });
