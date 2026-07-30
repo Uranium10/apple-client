@@ -1,7 +1,7 @@
 import React from 'react';
 import './GameOverModal.css';
 
-const GameOverModal = ({ score, isHost, timeLeft, votes, playersCount, players, playerScores, onVote, onLeave, myId }) => {
+const GameOverModal = ({ score, gameMode, isHost, timeLeft, votes, playersCount, players, playerScores, onVote, onLeave, myId }) => {
   const myVote = votes[myId];
   const votedCount = Object.keys(votes).length;
 
@@ -62,13 +62,35 @@ const GameOverModal = ({ score, isHost, timeLeft, votes, playersCount, players, 
   return (
     <div className="modal-overlay">
       <div className="apple-score-container">
-        <div className={`top-section ${playersCount > 1 ? 'multiplayer-layout' : ''}`}>
-          <div className="apple-body">
-            <div className="score-text">최종 점수</div>
-            <div className="score-number">{score}</div>
-          </div>
+        <div className={`top-section ${gameMode !== 'solo' ? 'multiplayer-layout' : ''}`}>
+          
+          {gameMode !== 'comp' && (
+            <div className="apple-body">
+              <div className="score-text">최종 점수</div>
+              <div className="score-number">{score}</div>
+            </div>
+          )}
 
-          {playersCount > 1 && (
+          {gameMode === 'comp' && (
+            <div className="contribution-board comp-board">
+              <h3 className="contribution-title">🏆 최종 순위</h3>
+              <div className="contribution-list">
+                {sortedPlayers.map((p, idx) => (
+                  <div key={p.id} className={`contribution-row row-${idx % 2}`}>
+                    <span className="rank-badge" style={{
+                      color: idx === 0 ? '#f1c40f' : idx === 1 ? '#e0e0e0' : idx === 2 ? '#e67e22' : '#95a5a6'
+                    }}>
+                      {idx + 1}위
+                    </span>
+                    <span className="player-nick">{p.name} {p.id === myId ? '(나)' : ''}</span>
+                    <span className="player-score">{p.score}점</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {gameMode === 'coop' && playersCount > 1 && (
             <div className="contribution-board">
               <h3 className="contribution-title">🏆 기여 점수</h3>
               <div className="contribution-list">
@@ -103,20 +125,22 @@ const GameOverModal = ({ score, isHost, timeLeft, votes, playersCount, players, 
                 <div>다시 하기</div>
                 {myVote === 'PLAY_AGAIN' && <div className="cancel-vote-text">(투표 취소)</div>}
               </button>
-              {renderCheckmarks('PLAY_AGAIN')}
+              {gameMode !== 'solo' && renderCheckmarks('PLAY_AGAIN')}
             </div>
 
-            {/* 대기실로 버튼 */}
-            <div className="button-column">
-              <button
-                className={`gameover-btn ${myVote === 'TO_LOBBY' ? 'btn-voted-grey' : 'btn-to-lobby'}`}
-                onClick={() => handleVoteClick('TO_LOBBY')}
-              >
-                <div>대기실로</div>
-                {myVote === 'TO_LOBBY' && <div className="cancel-vote-text">(투표 취소)</div>}
-              </button>
-              {renderCheckmarks('TO_LOBBY')}
-            </div>
+            {/* 대기실로 버튼 (솔로모드 제외) */}
+            {gameMode !== 'solo' && (
+              <div className="button-column">
+                <button
+                  className={`gameover-btn ${myVote === 'TO_LOBBY' ? 'btn-voted-grey' : 'btn-to-lobby'}`}
+                  onClick={() => handleVoteClick('TO_LOBBY')}
+                >
+                  <div>대기실로</div>
+                  {myVote === 'TO_LOBBY' && <div className="cancel-vote-text">(투표 취소)</div>}
+                </button>
+                {renderCheckmarks('TO_LOBBY')}
+              </div>
+            )}
 
             {/* 나가기 버튼 */}
             <div className="button-column">
@@ -124,10 +148,10 @@ const GameOverModal = ({ score, isHost, timeLeft, votes, playersCount, players, 
                 className={`gameover-btn ${myVote === 'LEAVE' ? 'btn-voted-grey' : 'btn-leave'}`}
                 onClick={() => handleVoteClick('LEAVE')}
               >
-                <div>나가기</div>
+                <div>{gameMode === 'solo' ? '로비로 나가기' : '나가기'}</div>
                 {myVote === 'LEAVE' && <div className="cancel-vote-text">(투표 취소)</div>}
               </button>
-              {renderCheckmarks('LEAVE')}
+              {gameMode !== 'solo' && renderCheckmarks('LEAVE')}
             </div>
           </div>
         </div>

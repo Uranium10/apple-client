@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Lobby from './components/Lobby';
 import Room from './components/Room';
 import Leaderboard from './components/Leaderboard';
+import ModeModal from './components/ModeModal';
 import './App.css';
 
 const SIGNALING_SERVER_URL = import.meta.env.VITE_SIGNALING_SERVER_URL || `http://${window.location.hostname}:8000`;
@@ -40,6 +41,9 @@ function App() {
   const [inRoom, setInRoom] = useState(false);
   const [roomId, setRoomId] = useState('');
   const [isHost, setIsHost] = useState(false);
+  
+  const [showModeModal, setShowModeModal] = useState(false);
+  const [gameMode, setGameMode] = useState('coop'); // coop, comp, solo
   
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [hasNewLeaderboardData, setHasNewLeaderboardData] = useState(false);
@@ -113,7 +117,14 @@ function App() {
   };
 
   const handleCreateRoom = () => {
-    const newRoomId = Math.random().toString(36).substr(2, 9);
+    setShowModeModal(true);
+  };
+
+  const handleModeSelect = (mode) => {
+    setGameMode(mode);
+    setShowModeModal(false);
+    
+    const newRoomId = mode === 'solo' ? 'solo-' + Math.random().toString(36).substr(2, 9) : Math.random().toString(36).substr(2, 9);
     setRoomId(newRoomId);
     setIsHost(true);
     setInRoom(true);
@@ -127,6 +138,7 @@ function App() {
     }
     setRoomId(id);
     setIsHost(false);
+    setGameMode('coop'); // Default to coop, will sync from host
     setInRoom(true);
   };
 
@@ -198,6 +210,13 @@ function App() {
           }
         }}
       />
+      
+      {showModeModal && (
+        <ModeModal 
+          onClose={() => setShowModeModal(false)} 
+          onSelectMode={handleModeSelect} 
+        />
+      )}
 
       {!inRoom ? (
         <Lobby 
@@ -218,6 +237,8 @@ function App() {
           clientName={clientName}
           serverUrl={getWebSocketUrl(SIGNALING_SERVER_URL)}
           apiServerUrl={SIGNALING_SERVER_URL}
+          gameMode={gameMode}
+          setGameMode={setGameMode}
           onLeave={handleLeaveRoom}
           onGameStateChange={setIsGameRunning}
         />

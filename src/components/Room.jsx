@@ -4,11 +4,12 @@ import { generateBoard } from '../utils/appleGenerator';
 import GameBoard from './GameBoard';
 import RemoteCursor from './RemoteCursor';
 import GameOverModal from './GameOverModal';
+import OpponentsBoard from './OpponentsBoard';
 import './Room.css';
 
 const GAME_DURATION = 120;
 
-const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerUrl, onLeave, onGameStateChange }) => {
+const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerUrl, gameMode, setGameMode, onLeave, onGameStateChange }) => {
   const [isHost, setIsHost] = useState(initialIsHost);
   const [hostId, setHostId] = useState(null);
   const [players, setPlayers] = useState([]); // [{id, name, isReady}]
@@ -16,8 +17,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   const [chatInput, setChatInput] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
 
-  const [gameStarted, setGameStarted] = useState(false);
-  const [boardData, setBoardData] = useState(null);
+  const [gameStarted, setGameStarted] = useState(gameMode === 'solo');
+  const [boardData, setBoardData] = useState(() => gameMode === 'solo' ? generateBoard() : null);
   const cursorDataRef = useRef({});
   const [score, setScore] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(GAME_DURATION);
@@ -33,6 +34,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   const [startCountdown, setStartCountdown] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
   const [playerScores, setPlayerScores] = useState({});
+  const [opponentsState, setOpponentsState] = useState({});
 
   const chatEndRef = useRef(null);
 
@@ -189,7 +191,16 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   }, [gameOverVotes, gameOverTimeLeft, players.length, isGameOver, isHost, hostId, players]);
 
   useEffect(() => {
-    // Initialize WebRTC
+    // Solo mode: immediately start, skip WebRTC
+    if (gameMode === 'solo') {
+      setIsHost(true);
+      setHostId('solo-player');
+      setPlayers([{ id: 'solo-player', name: clientName, isReady: true }]);
+      setGameStarted(true);
+      return;
+    }
+
+    // Initialize WebRTC for multiplayer
     const manager = new WebRTCManager(
       serverUrl,
       clientName,
@@ -268,6 +279,18 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       return next;
     });
     setMessages(prev => [...prev, { type: 'system', text: `${peerName}님이 방에 입장했습니다.` }]);
+
+    // Send ROOM_SETTINGS to new guest to sync gameMode
+    if (isHostRef.current && webrtcRef.current) {
+      setTimeout(() => {
+        if (webrtcRef.current) {
+          webrtcRef.current.sendTo(peerId, {
+            type: 'ROOM_SETTINGS',
+            gameMode
+          });
+        }
+      }, 500);
+    }
 
     // If game has already started, host needs to sync state to the new player
     if (isHostRef.current && gameStartedRef.current && boardDataRef.current) {
@@ -369,6 +392,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setTimeRemaining(GAME_DURATION);
         setIsGameOver(false);
         setPlayerScores({});
+        setOpponentsState({});
         break;
       case 'START_COUNTDOWN':
         setIsStarting(true);
@@ -389,6 +413,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setStartCountdown(null);
         setIsSpectator(false);
         setPlayerScores(data.playerScores || {});
+        setOpponentsState({});
         break;
       case 'BOARD_SYNC':
         if (!isHostRef.current) {
@@ -431,18 +456,39 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         }
         break;
       case 'APPLES_REMOVED':
-        setBoardData(prev => {
-          if (!prev) return prev;
-          const newBoard = prev.board.map(apple => {
-            if (data.removedIds.includes(apple.id)) {
-              return { ...apple, removed: true };
-            }
-            return apple;
+        if (gameMode === 'coop') {
+          setBoardData(prev => {
+            if (!prev) return prev;
+            const newBoard = prev.board.map(apple => {
+              if (data.removedIds.includes(apple.id)) {
+                return { ...apple, removed: true };
+              }
+              return apple;
+            });
+            return { ...prev, board: newBoard };
           });
-          return { ...prev, board: newBoard };
-        });
-        if (!isHostRef.current) {
-          setScore(prev => prev + data.points);
+          if (!isHostRef.current) {
+            setScore(prev => prev + data.points);
+            if (data.playerScores) {
+              setPlayerScores(data.playerScores);
+            } else if (data.scorerId) {
+              setPlayerScores(prev => ({
+                ...prev,
+                [data.scorerId]: (prev[data.scorerId] || 0) + data.points
+              }));
+            }
+          }
+        } else if (gameMode === 'comp') {
+          setOpponentsState(prev => {
+            const opponent = prev[data.scorerId] || { score: 0, removedIds: [] };
+            return {
+              ...prev,
+              [data.scorerId]: {
+                score: (opponent.score || 0) + data.points,
+                removedIds: [...(opponent.removedIds || []), ...data.removedIds]
+              }
+            };
+          });
           if (data.playerScores) {
             setPlayerScores(data.playerScores);
           } else if (data.scorerId) {
@@ -492,10 +538,13 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setIsGameOver(false);
         setPlayers(prev => prev.map(p => ({ ...p, isReady: p.id === hostId })));
         break;
+      case 'ROOM_SETTINGS':
+        if (setGameMode) setGameMode(data.gameMode);
+        break;
       default:
         break;
     }
-  }, []);
+  }, [gameMode, setGameMode]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -574,8 +623,44 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   };
 
   const handleApplesRemoved = (removedIds, points, customScorerId = null) => {
-    const scorerId = customScorerId || webrtcRef.current?.clientId;
-    if (isHost) {
+    const scorerId = customScorerId || (webrtcRef.current ? webrtcRef.current.clientId : 'solo-player');
+    
+    if (gameMode === 'coop') {
+      if (isHost) {
+        const newBoard = boardData.board.map(apple =>
+          removedIds.includes(apple.id) ? { ...apple, removed: true } : apple
+        );
+        setBoardData(prev => ({ ...prev, board: newBoard }));
+        setScore(prev => prev + points);
+
+        const newScores = {
+          ...playerScoresRef.current,
+          [scorerId]: (playerScoresRef.current[scorerId] || 0) + points
+        };
+        setPlayerScores(newScores);
+
+        if (webrtcRef.current) {
+          webrtcRef.current.broadcastReliable({
+            type: 'APPLES_REMOVED',
+            removedIds,
+            points,
+            scorerId,
+            playerScores: newScores
+          });
+        }
+      } else {
+        // Client sends request to host
+        if (webrtcRef.current) {
+          webrtcRef.current.broadcastReliable({
+            type: 'REQUEST_REMOVE',
+            removedIds,
+            points,
+            scorerId: webrtcRef.current.clientId
+          });
+        }
+      }
+    } else {
+      // Comp or Solo mode
       const newBoard = boardData.board.map(apple =>
         removedIds.includes(apple.id) ? { ...apple, removed: true } : apple
       );
@@ -588,23 +673,13 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       };
       setPlayerScores(newScores);
 
-      if (webrtcRef.current) {
+      if (gameMode === 'comp' && webrtcRef.current) {
         webrtcRef.current.broadcastReliable({
           type: 'APPLES_REMOVED',
           removedIds,
           points,
           scorerId,
           playerScores: newScores
-        });
-      }
-    } else {
-      // Client sends request to host
-      if (webrtcRef.current) {
-        webrtcRef.current.broadcastReliable({
-          type: 'REQUEST_REMOVE',
-          removedIds,
-          points,
-          scorerId: webrtcRef.current.clientId
         });
       }
     }
@@ -717,9 +792,19 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           />
         )}
 
+        {gameMode === 'comp' && (
+          <OpponentsBoard 
+            players={players} 
+            myId={webrtcRef.current?.clientId} 
+            opponentsState={opponentsState} 
+            initialBoard={boardDataRef.current} 
+          />
+        )}
+
         {isGameOver && (
           <GameOverModal
             score={score}
+            gameMode={gameMode}
             isHost={isHost}
             timeLeft={gameOverTimeLeft}
             votes={gameOverVotes}
@@ -739,7 +824,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
               webrtcRef.current.broadcastReliable({ type: 'VOTE_CAST', vote });
             }}
             onLeave={onLeave}
-            myId={webrtcRef.current?.clientId}
+            myId={webrtcRef.current?.clientId || (gameMode === 'solo' ? 'solo-player' : null)}
           />
         )}
 
@@ -763,10 +848,10 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
   // Waiting Room UI
   return (
-    <div className="room-container">
+    <div className={`room-container ${gameMode === 'comp' ? 'room-comp' : 'room-coop'}`}>
       <div className="room-box">
         <div className="room-header">
-          <h1>🍎 대기실</h1>
+          <h1>{gameMode === 'comp' ? '⚔️ 경쟁 게임 대기실' : '🍎 대기실'}</h1>
           <button className="leave-btn" onClick={onLeave}>방 나가기</button>
         </div>
 

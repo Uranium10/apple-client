@@ -1,0 +1,99 @@
+.mode-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(3px);
+}
+
+.mode-modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mode-close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #999;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.mode-close-btn:hover {
+  color: #333;
+}
+
+.mode-top-row {
+  display: flex;
+  gap: 20px;
+  height: 200px;
+}
+
+.mode-card {
+  border-radius: 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  color: white;
+}
+
+.mode-card h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.mode-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.mode-card:active {
+  transform: translateY(1px);
+}
+
+.mode-coop {
+  flex: 1;
+  background: linear-gradient(135deg, #8ad4f3, #60c1e5);
+}
+
+.mode-comp {
+  flex: 1;
+  background: linear-gradient(135deg, #ff6b7e, #f24b61);
+}
+
+.mode-bottom-row {
+  height: 80px;
+}
+
+.mode-solo {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f4f4f4, #e6e6e6);
+  color: #3f7b2c; /* green text */
+}
+
+.mode-solo h3 {
+  text-shadow: none;
+}
