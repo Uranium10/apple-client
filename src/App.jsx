@@ -48,65 +48,46 @@ function App() {
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [hasNewLeaderboardData, setHasNewLeaderboardData] = useState(false);
 
-  const [isDuplicate, setIsDuplicate] = useState(false);
+  const [isDeactivated, setIsDeactivated] = useState(false);
   const [isGameRunning, setIsGameRunning] = useState(false);
 
+  // 1. Assert dominance on mount
   useEffect(() => {
     const channel = new BroadcastChannel('apple_game_channel');
+    
+    // Announce to other tabs that this new tab is taking over
+    channel.postMessage({ type: 'NEW_TAB_OPENED' });
+
+    const handleMessage = (event) => {
+      if (event.data.type === 'NEW_TAB_OPENED') {
+        setIsDeactivated(true);
+        setInRoom(false);
+        setRoomId('');
+      }
+    };
+    channel.addEventListener('message', handleMessage);
+
+    return () => {
+      channel.removeEventListener('message', handleMessage);
+      channel.close();
+    };
+  }, []);
+
+  // 2. Handle URL invite link joining
+  useEffect(() => {
+    if (isDeactivated) return;
+
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
 
-    if (roomParam && !inRoom && !showNameModal) {
-      // New tab with room param
-      channel.postMessage({ type: 'JOIN_ROOM', roomId: roomParam });
-
-      const handleAck = (event) => {
-        if (event.data.type === 'ACK') {
-          setIsDuplicate(true);
-          setTimeout(() => {
-            window.close();
-          }, 3000);
-        }
-      };
-      
-      channel.addEventListener('message', handleAck);
-
-      const timeout = setTimeout(() => {
-        channel.removeEventListener('message', handleAck);
-        if (!isDuplicate) {
-          setRoomId(roomParam);
-          setIsHost(false);
-          setInRoom(true);
-          setShowModeModal(false);
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-      }, 300);
-
-      return () => {
-        clearTimeout(timeout);
-        channel.removeEventListener('message', handleAck);
-        channel.close();
-      };
-    } else {
-      // Existing tab listening for join requests
-      const handleJoin = (event) => {
-        if (event.data.type === 'JOIN_ROOM') {
-          channel.postMessage({ type: 'ACK' });
-          if (event.data.roomId) {
-            setRoomId(event.data.roomId);
-            setIsHost(false);
-            setInRoom(true);
-            setShowModeModal(false);
-          }
-        }
-      };
-      channel.addEventListener('message', handleJoin);
-      return () => {
-        channel.removeEventListener('message', handleJoin);
-        channel.close();
-      };
+    if (roomParam && !showNameModal && !inRoom) {
+      setRoomId(roomParam);
+      setIsHost(false);
+      setInRoom(true);
+      setShowModeModal(false);
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [showNameModal, inRoom, isDuplicate]);
+  }, [showNameModal, inRoom, isDeactivated]);
 
   const handleNameSubmit = (e) => {
     e.preventDefault();
@@ -151,13 +132,13 @@ function App() {
     setIsHost(false);
   };
 
-  if (isDuplicate) {
+  if (isDeactivated) {
     return (
       <div className="name-modal-overlay">
         <div className="name-modal" style={{ textAlign: 'center' }}>
-          <h2>기존 창으로 이동되었습니다!</h2>
-          <p>이미 열려있던 사과게임 창에서 방으로 입장했습니다.</p>
-          <p style={{ fontSize: '14px', color: '#666', marginTop: '20px' }}>이 창은 잠시 후 자동으로 닫히거나, 직접 닫아주세요.</p>
+          <h2>다른 창에서 게임이 실행되었습니다</h2>
+          <p>새로운 탭에서 사과게임이 열려 이 창은 비활성화되었습니다.</p>
+          <p style={{ fontSize: '14px', color: '#666', marginTop: '20px' }}>이 창은 닫으셔도 좋습니다.</p>
         </div>
       </div>
     );
