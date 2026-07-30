@@ -771,6 +771,10 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   };
 
   const returnToWaitingRoom = () => {
+    if (gameMode === 'solo') {
+      onLeave();
+      return;
+    }
     setGameStarted(false);
     setIsGameOver(false);
     setIsSpectator(false);
