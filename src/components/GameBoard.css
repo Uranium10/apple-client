@@ -41,7 +41,7 @@
 
 .game-board {
   display: grid;
-  gap: 1px;
+  gap: 4px; /* Desktop gap increased from 1px to 4px */
   position: relative;
   will-change: transform;
 }
@@ -201,6 +201,7 @@
   /* Make apples scale better to fill the height */
   .game-board {
     transform-origin: center center;
+    gap: 1px; /* Mobile gap remains 1px */
   }
 
   .side-panel {

@@ -68,8 +68,10 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
         const col = remoteApple.id % cols;
         const row = Math.floor(remoteApple.id / cols);
         // Position relative to game-board (unscaled)
-        const startX = col * 40 + 20;
-        const startY = row * 40 + 20;
+        // Use current cell size for particle spawn positions
+        const currentCellSize = isMobileView ? 40 : 44;
+        const startX = col * currentCellSize + (currentCellSize / 2);
+        const startY = row * currentCellSize + (currentCellSize / 2);
 
         const angle = Math.random() * (340 - 200) * (Math.PI / 180) + 200 * (Math.PI / 180);
         const velocity = Math.random() * 10 + 15; 
@@ -112,10 +114,10 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
       if (!innerScreenRef.current) return;
       const cols = size.width || size.cols;
       const rows = size.height || size.rows;
-      const boardWidth = cols * 40;
-      const boardHeight = rows * 40;
-      
       const isMobile = window.innerWidth <= 950 || window.innerHeight <= 600;
+      const currentCellSize = isMobile ? 40 : 44;
+      const boardWidth = cols * currentCellSize;
+      const boardHeight = rows * currentCellSize;
       const widthPadding = isMobile ? 20 : 100;
       const heightPadding = isMobile ? 20 : 60;
       
@@ -154,12 +156,13 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
       const id = parseInt(apple.dataset.id);
       const col = id % cols;
       const row = Math.floor(id / cols);
+      const currentCellSize = isMobileView ? 40 : 44;
       return {
         id: id,
         number: parseInt(apple.dataset.number),
         removed: apple.classList.contains('removed'),
-        centerX: col * 40 + 20,
-        centerY: row * 40 + 20
+        centerX: col * currentCellSize + (currentCellSize / 2),
+        centerY: row * currentCellSize + (currentCellSize / 2)
       };
     });
     
@@ -250,8 +253,9 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
             
             const col = apple.id % cols;
             const row = Math.floor(apple.id / cols);
-            const startX = col * 40 + 20;
-            const startY = row * 40 + 20;
+            const currentCellSize = isMobileView ? 40 : 44;
+            const startX = col * currentCellSize + (currentCellSize / 2);
+            const startY = row * currentCellSize + (currentCellSize / 2);
 
             const angle = Math.random() * (340 - 200) * (Math.PI / 180) + 200 * (Math.PI / 180);
             const velocity = Math.random() * 10 + 15; 
@@ -287,8 +291,9 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
 
   const cols = size.width || size.cols;
   const rows = size.height || size.rows;
-  const boardWidth = cols * 40;
-  const boardHeight = rows * 40;
+  const cellSize = isMobileView ? 40 : 44;
+  const boardWidth = cols * cellSize;
+  const boardHeight = rows * cellSize;
 
   return (
     <div 
@@ -314,7 +319,8 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
             className="game-board" 
             ref={boardRef}
             style={{
-              gridTemplateColumns: `repeat(${cols}, 40px)`,
+              gridTemplateColumns: `repeat(${cols}, 38px)`,
+              gap: `${cellSize - 38}px`,
               transform: `scale(${boardScale})`,
               transformOrigin: 'top left',
               position: 'relative'
