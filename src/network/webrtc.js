@@ -62,9 +62,9 @@ export class WebRTCManager {
     return false;
   }
 
-  connect(roomId, isHost = false) {
+  connect(roomId, isHost = false, gameMode = 'coop') {
     this.roomId = roomId;
-    this.ws = new WebSocket(`${this.serverUrl}/ws/${roomId}/${this.clientId}?name=${encodeURIComponent(this.clientName)}&isHost=${isHost}`);
+    this.ws = new WebSocket(`${this.serverUrl}/ws/${roomId}/${this.clientId}?name=${encodeURIComponent(this.clientName)}&isHost=${isHost}&gameMode=${gameMode}`);
 
     this.connectionTimeout = setTimeout(() => {
       if (this.ws.readyState !== WebSocket.OPEN) {
