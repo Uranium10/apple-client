@@ -23,6 +23,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   const [score, setScore] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(GAME_DURATION);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [isSpectator, setIsSpectator] = useState(false);
+  const [spectatingId, setSpectatingId] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('apple_dark_mode') === 'true';
   });
@@ -705,14 +707,27 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       };
       setPlayerScores(newScores);
 
-      if (gameMode === 'comp' && webrtcRef.current) {
-        webrtcRef.current.broadcastReliable({
-          type: 'APPLES_REMOVED',
-          removedIds,
-          points,
-          scorerId,
-          playerScores: newScores
+      if (gameMode === 'comp') {
+        setOpponentsState(prev => {
+          const me = prev[scorerId] || { score: 0, removedIds: [] };
+          return {
+            ...prev,
+            [scorerId]: {
+              score: (me.score || 0) + points,
+              removedIds: [...(me.removedIds || []), ...removedIds]
+            }
+          };
         });
+
+        if (webrtcRef.current) {
+          webrtcRef.current.broadcastReliable({
+            type: 'APPLES_REMOVED',
+            removedIds,
+            points,
+            scorerId,
+            playerScores: newScores
+          });
+        }
       }
     }
   };
@@ -730,6 +745,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     setGameStarted(false);
     setIsGameOver(false);
     setIsSpectator(false);
+    setSpectatingId(null);
     setPlayers(prev => prev.map(p => ({ ...p, isReady: p.id === hostId })));
   };
 
@@ -807,24 +823,44 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           </div>
         </header>
 
-        {boardData && (
-          <GameBoard
-            key={gameMode === 'comp' ? 'comp-board' : 'coop-board'}
-            board={boardData.board}
-            size={boardData.size}
-            onApplesRemoved={handleApplesRemoved}
-            sendCursorData={gameMode === 'comp' ? null : handleCursorData}
-            isGameOver={isGameOver || isStarting}
-            score={score}
-            timeRemaining={timeRemaining}
-            totalTime={GAME_DURATION}
-            myColor={getPlayerColor(webrtcRef.current?.clientId)}
-            isSpectator={isSpectator}
-            cursorDataRef={gameMode === 'comp' ? { current: {} } : cursorDataRef}
-            getPlayerColor={getPlayerColor}
-            hideCursors={gameMode === 'comp'}
-          />
-        )}
+        {(() => {
+          let activeBoardData = boardData;
+          let activeScore = score;
+          
+          // Generate an active board for spectator dynamically based on opponentsState
+          if (isSpectator && spectatingId && opponentsState[spectatingId] && boardData) {
+            const targetState = opponentsState[spectatingId];
+            const removedSet = new Set(targetState.removedIds);
+            activeBoardData = {
+              ...boardData,
+              board: boardData.board.map(apple => 
+                removedSet.has(apple.id) ? { ...apple, removed: true } : { ...apple, removed: false }
+              )
+            };
+            activeScore = targetState.score;
+          }
+
+          if (!activeBoardData) return null;
+
+          return (
+            <GameBoard
+              key={gameMode === 'comp' ? 'comp-board' : 'coop-board'}
+              board={activeBoardData.board}
+              size={activeBoardData.size}
+              onApplesRemoved={handleApplesRemoved}
+              sendCursorData={gameMode === 'comp' ? null : handleCursorData}
+              isGameOver={isGameOver || isStarting}
+              score={activeScore}
+              timeRemaining={timeRemaining}
+              totalTime={GAME_DURATION}
+              myColor={getPlayerColor(webrtcRef.current?.clientId)}
+              isSpectator={isSpectator}
+              cursorDataRef={gameMode === 'comp' ? { current: {} } : cursorDataRef}
+              getPlayerColor={getPlayerColor}
+              hideCursors={gameMode === 'comp'}
+            />
+          );
+        })()}
 
         {isGameOver && (
           <GameOverModal
@@ -875,12 +911,19 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         <div style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
           <OpponentsBoard 
             players={players} 
-            myId={webrtcRef.current?.clientId || 'solo-player'} 
             opponentsState={opponentsState} 
             initialBoard={boardData} 
+            isSpectator={isSpectator}
+            onSpectatePlayer={setSpectatingId}
+            spectatingId={spectatingId}
           />
         </div>
         {coreGameScreen}
+        {isSpectator && spectatingId && (
+          <div style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.7)', color: '#00bfff', padding: '5px 15px', borderRadius: '20px', fontWeight: 'bold', zIndex: 100, pointerEvents: 'none' }}>
+            현재 {players.find(p => p.id === spectatingId)?.name || '알 수 없음'}님을 관전 중입니다
+          </div>
+        )}
       </>
     ) : coreGameScreen;
 

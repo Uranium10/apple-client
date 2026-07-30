@@ -24,7 +24,7 @@ const MiniBoard = memo(({ boardStructure, removedIds }) => {
 });
 
 // Memoize the entire OpponentsBoard to avoid re-rendering when the local game state (like timeRemaining) changes
-const OpponentsBoard = memo(({ players, myId, opponentsState, initialBoard }) => {
+const OpponentsBoard = memo(({ players, opponentsState, initialBoard, isSpectator, onSpectatePlayer, spectatingId }) => {
   
   // Cache the board structure (array of just the IDs) so we don't depend on initialBoard.board changing
   const boardStructure = useMemo(() => {
@@ -34,7 +34,6 @@ const OpponentsBoard = memo(({ players, myId, opponentsState, initialBoard }) =>
 
   const opponents = useMemo(() => {
     return players
-      .filter(p => p.id !== myId)
       .map(p => {
         const state = opponentsState[p.id] || { score: 0, removedIds: [] };
         return {
@@ -45,7 +44,7 @@ const OpponentsBoard = memo(({ players, myId, opponentsState, initialBoard }) =>
         };
       })
       .sort((a, b) => b.score - a.score);
-  }, [players, myId, opponentsState]);
+  }, [players, opponentsState]);
 
   if (opponents.length === 0) return null;
 
@@ -56,8 +55,17 @@ const OpponentsBoard = memo(({ players, myId, opponentsState, initialBoard }) =>
         {opponents.map((opp, index) => (
           <div 
             key={opp.id} 
-            className="opponent-card"
-            style={{ transform: `translateY(${index * 130}px)` }}
+            className={`opponent-card ${isSpectator && spectatingId === opp.id ? 'spectating-active' : ''}`}
+            style={{ 
+              transform: `translateY(${index * 130}px)`,
+              cursor: isSpectator ? 'pointer' : 'default',
+              border: isSpectator && spectatingId === opp.id ? '2px solid #00bfff' : 'none'
+            }}
+            onClick={() => {
+              if (isSpectator && onSpectatePlayer) {
+                onSpectatePlayer(opp.id);
+              }
+            }}
           >
             <div className="opponent-header">
               <span className="opponent-rank">{index + 1}위</span>
