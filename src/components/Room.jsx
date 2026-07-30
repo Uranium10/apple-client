@@ -906,6 +906,10 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
             players={players}
             playerScores={playerScores}
             onVote={(vote) => {
+              if (gameMode === 'solo') {
+                if (vote === 'PLAY_AGAIN') startGame();
+                return;
+              }
               setGameOverVotes(prev => {
                 const next = { ...prev };
                 if (vote === null) {
@@ -915,7 +919,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
                 }
                 return next;
               });
-              webrtcRef.current.broadcastReliable({ type: 'VOTE_CAST', vote });
+              webrtcRef.current?.broadcastReliable({ type: 'VOTE_CAST', vote });
             }}
             onLeave={onLeave}
             myId={webrtcRef.current?.clientId || (gameMode === 'solo' ? 'solo-player' : null)}
