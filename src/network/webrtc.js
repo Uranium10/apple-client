@@ -302,6 +302,26 @@ export class WebRTCManager {
     }
   }
 
+  // Send via BOTH P2P DataChannel AND WS server relay directly to a specific peer
+  sendReliableTo(peerId, message) {
+    const msgId = this._generateMsgId();
+    // Add target so the Python signaling server routes it directly to peerId
+    const messageWithId = { ...message, _msgId: msgId, target: peerId };
+    
+    // Path 1: P2P DataChannel
+    const channel = this.dataChannels[peerId];
+    if (channel && channel.readyState === 'open') {
+      try {
+        channel.send(JSON.stringify(messageWithId));
+      } catch (e) {
+        console.warn(`[RELIABLE] P2P send failed to ${peerId}:`, e);
+      }
+    }
+    
+    // Path 2: WS server relay (reliable fallback)
+    this.sendViaWS(messageWithId);
+  }
+
   // Send via P2P DataChannel only (for high-frequency, loss-tolerant messages like cursors)
   broadcast(message) {
     if (message && message.type === 'PLAYER_READY') {

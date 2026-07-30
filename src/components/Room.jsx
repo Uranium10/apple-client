@@ -345,7 +345,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     if (isHostRef.current && gameStartedRef.current && boardDataRef.current) {
       setTimeout(() => {
         if (webrtcRef.current) {
-          webrtcRef.current.sendTo(peerId, {
+          webrtcRef.current.sendReliableTo(peerId, {
             type: 'BOARD_SYNC',
             boardData: boardDataRef.current,
             timeRemaining: timeRemainingRef.current,
