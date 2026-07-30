@@ -14,20 +14,29 @@ const PhysicsApples = ({ newParticles }) => {
   useEffect(() => {
     if (newParticles && newParticles.length > 0) {
       // Find available DOM elements in the pool
-      let assignedCount = 0;
+      const newActive = [...activeParticlesRef.current];
       
       const fresh = newParticles.map(p => {
-        // Find a free slot in the pool (a slot not currently in activeParticlesRef)
+        // Find a free slot in the pool (a slot not currently in newActive)
         let poolIndex = -1;
         for (let i = 0; i < POOL_SIZE; i++) {
-          if (!activeParticlesRef.current.some(ap => ap.poolIndex === i)) {
+          if (!newActive.some(ap => ap.poolIndex === i)) {
             poolIndex = i;
             break;
           }
         }
         
-        // If pool is full, just overwrite the oldest one (fallback)
+        // If pool is full, just overwrite a random one
         if (poolIndex === -1) poolIndex = Math.floor(Math.random() * POOL_SIZE);
+
+        const newParticle = {
+          ...p,
+          x: 0,
+          y: 0,
+          rotation: 0,
+          poolIndex
+        };
+        newActive.push(newParticle);
 
         const el = particleRefs.current[poolIndex];
         if (el) {
@@ -36,16 +45,10 @@ const PhysicsApples = ({ newParticles }) => {
           el.style.transform = `translate(${p.startX}px, ${p.startY}px) rotate(0deg)`;
         }
 
-        return {
-          ...p,
-          x: 0,
-          y: 0,
-          rotation: 0,
-          poolIndex
-        };
+        return newParticle;
       });
       
-      activeParticlesRef.current = [...activeParticlesRef.current, ...fresh];
+      activeParticlesRef.current = newActive;
       
       if (!requestRef.current) {
         requestRef.current = requestAnimationFrame(updatePhysics);
