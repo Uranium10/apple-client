@@ -755,18 +755,9 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   const allReady = players.every(p => p.isReady);
 
   if (gameStarted) {
-    const gameScreenContent = (
-      <div className="game-screen-wrapper" style={{ display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-        {gameMode === 'comp' && (
-          <OpponentsBoard 
-            players={players} 
-            myId={webrtcRef.current?.clientId || (gameMode === 'solo' ? 'solo-player' : null)} 
-            opponentsState={opponentsState} 
-            initialBoard={boardData} 
-          />
-        )}
-        <div className={`game-screen ${isDarkMode ? 'dark-mode' : ''}`}>
-          <button
+    const coreGameScreen = (
+      <div className={`game-screen ${isDarkMode ? 'dark-mode' : ''}`}>
+        <button
           className="dark-mode-toggle-btn"
           onClick={() => {
             setIsDarkMode(prev => {
@@ -868,7 +859,6 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
             <div className="giant-countdown-text">{startCountdown}</div>
           </div>
         )}
-        </div>
       </div>
     );
     
