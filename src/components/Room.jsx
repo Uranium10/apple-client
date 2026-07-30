@@ -45,6 +45,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   const playersRef = useRef(players);
   const scoreRef = useRef(score);
   const playerScoresRef = useRef(playerScores);
+  const opponentsStateRef = useRef(opponentsState);
   const gameStartedRef = useRef(gameStarted);
   const timeRemainingRef = useRef(timeRemaining);
   const gameModeRef = useRef(gameMode);
@@ -54,10 +55,17 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
   useEffect(() => { playersRef.current = players; }, [players]);
   useEffect(() => { scoreRef.current = score; }, [score]);
   useEffect(() => { playerScoresRef.current = playerScores; }, [playerScores]);
+  useEffect(() => { opponentsStateRef.current = opponentsState; }, [opponentsState]);
   useEffect(() => { gameStartedRef.current = gameStarted; }, [gameStarted]);
   useEffect(() => { timeRemainingRef.current = timeRemaining; }, [timeRemaining]);
   useEffect(() => { gameModeRef.current = gameMode; }, [gameMode]);
   useEffect(() => { if (onGameStateChange) onGameStateChange(gameStarted); }, [gameStarted, onGameStateChange]);
+
+  const initializeOpponentsState = useCallback(() => {
+    const initOpps = {};
+    playersRef.current.forEach(p => { initOpps[p.id] = { score: 0, removedIds: [] }; });
+    return initOpps;
+  }, []);
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -323,7 +331,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
             timeRemaining: timeRemainingRef.current,
             score: scoreRef.current,
             gameStarted: true,
-            playerScores: playerScoresRef.current
+            playerScores: playerScoresRef.current,
+            opponentsState: opponentsStateRef.current
           });
         }
       }, 1000);
@@ -413,7 +422,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setTimeRemaining(GAME_DURATION);
         setIsGameOver(false);
         setPlayerScores({});
-        setOpponentsState({});
+        setOpponentsState(initializeOpponentsState());
         break;
       case 'START_COUNTDOWN':
         setIsStarting(true);
@@ -434,7 +443,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setStartCountdown(null);
         setIsSpectator(false);
         setPlayerScores(data.playerScores || {});
-        setOpponentsState({});
+        setOpponentsState(initializeOpponentsState());
         break;
       case 'BOARD_SYNC':
         if (!isHostRef.current) {
@@ -442,6 +451,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           if (data.timeRemaining !== undefined) setTimeRemaining(data.timeRemaining);
           if (data.score !== undefined) setScore(data.score);
           if (data.playerScores) setPlayerScores(data.playerScores);
+          if (data.opponentsState) setOpponentsState(data.opponentsState);
           if (data.gameStarted) {
             setGameStarted(true);
             setIsSpectator(true); // Mid-game joiner is a spectator
@@ -535,7 +545,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setTimeRemaining(GAME_DURATION);
         setIsGameOver(false);
         setPlayerScores({});
-        setOpponentsState({});
+        setOpponentsState(initializeOpponentsState());
         if (!isHostRef.current) setBoardData(data.boardData);
         break;
       case 'VOTE_CAST':
@@ -600,7 +610,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       setBoardData(data);
       setScore(0);
       setPlayerScores({});
-      setOpponentsState({});
+      setOpponentsState(initializeOpponentsState());
       setTimeRemaining(GAME_DURATION);
       setGameStarted(true);
       setIsStarting(false);
@@ -615,7 +625,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
     setBoardData(data);
     setScore(0);
     setPlayerScores({});
-    setOpponentsState({});
+    setOpponentsState(initializeOpponentsState());
     // Don't set timeRemaining to GAME_DURATION yet, so timer doesn't show 120s running.
     // Or we can set it to GAME_DURATION, since the timer worker won't run until isStarting is false!
     setTimeRemaining(GAME_DURATION);
@@ -644,7 +654,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setIsStarting(false);
         setStartCountdown(null);
         setPlayerScores({});
-        setOpponentsState({});
+        setOpponentsState(initializeOpponentsState());
 
         webrtcRef.current.broadcastReliable({ type: 'GAME_START', boardData: data, playerScores: {} });
       }
@@ -843,7 +853,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
           return (
             <GameBoard
-              key={gameMode === 'comp' ? 'comp-board' : 'coop-board'}
+              key={gameMode === 'comp' ? `comp-board-${isSpectator ? spectatingId : 'local'}` : 'coop-board'}
               board={activeBoardData.board}
               size={activeBoardData.size}
               onApplesRemoved={handleApplesRemoved}

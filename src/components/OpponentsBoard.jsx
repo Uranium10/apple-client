@@ -34,8 +34,9 @@ const OpponentsBoard = memo(({ players, opponentsState, initialBoard, isSpectato
 
   const opponents = useMemo(() => {
     return players
+      .filter(p => opponentsState[p.id] !== undefined)
       .map(p => {
-        const state = opponentsState[p.id] || { score: 0, removedIds: [] };
+        const state = opponentsState[p.id];
         return {
           id: p.id,
           name: p.name,
