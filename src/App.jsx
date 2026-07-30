@@ -77,6 +77,7 @@ function App() {
           setRoomId(roomParam);
           setIsHost(false);
           setInRoom(true);
+          setShowModeModal(false);
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       }, 300);
@@ -95,6 +96,7 @@ function App() {
             setRoomId(event.data.roomId);
             setIsHost(false);
             setInRoom(true);
+            setShowModeModal(false);
           }
         }
       };
@@ -140,6 +142,7 @@ function App() {
     setIsHost(false);
     setGameMode('coop'); // Default to coop, will sync from host
     setInRoom(true);
+    setShowModeModal(false);
   };
 
   const handleLeaveRoom = () => {
