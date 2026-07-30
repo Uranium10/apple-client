@@ -303,7 +303,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         if (webrtcRef.current) {
           webrtcRef.current.sendTo(peerId, {
             type: 'ROOM_SETTINGS',
-            gameMode
+            gameMode: gameModeRef.current
           });
         }
       }, 500);
@@ -473,7 +473,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         }
         break;
       case 'APPLES_REMOVED':
-        if (gameMode === 'coop') {
+        if (gameModeRef.current === 'coop') {
           setBoardData(prev => {
             if (!prev) return prev;
             const newBoard = prev.board.map(apple => {
@@ -495,7 +495,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
               }));
             }
           }
-        } else if (gameMode === 'comp') {
+        } else if (gameModeRef.current === 'comp') {
           setOpponentsState(prev => {
             const opponent = prev[data.scorerId] || { score: 0, removedIds: [] };
             return {
