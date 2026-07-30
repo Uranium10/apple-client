@@ -71,6 +71,8 @@
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
+  mix-blend-mode: multiply;
+  filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.5));
   z-index: -1;
 }
 
@@ -81,6 +83,11 @@
 .apple.removed {
   opacity: 0;
   pointer-events: none;
+}
+
+.apple.removed::before {
+  filter: none;
+  mix-blend-mode: normal;
 }
 
 .apple.selected::after {
