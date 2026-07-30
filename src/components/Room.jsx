@@ -578,6 +578,12 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
 
   const startGame = () => {
     if (!isHost || isStarting) return;
+    
+    if (gameMode === 'comp' && players.length < 2) {
+      alert("경쟁 모드는 최소 2명 이상이어야 시작할 수 있습니다.");
+      return;
+    }
+
     setIsStarting(true);
     setIsGameOver(false);
 
@@ -851,6 +857,8 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         )}
       </div>
     );
+    
+    return gameScreenContent;
   }
 
   // Waiting Room UI
@@ -957,11 +965,15 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         <div className="room-footer">
           {isHost ? (
             <button
-              className={`action-btn start-btn ${allReady && !isStarting ? 'ready' : 'disabled'}`}
+              className={`action-btn start-btn ${allReady && !isStarting && !(gameMode === 'comp' && players.length < 2) ? 'ready' : 'disabled'}`}
               onClick={startGame}
-              disabled={!allReady || isStarting}
+              disabled={!allReady || isStarting || (gameMode === 'comp' && players.length < 2)}
             >
-              {isStarting ? '시작 중...' : (allReady ? '게임 시작' : '모두 준비해야 시작 가능')}
+              {isStarting ? '시작 중...' : (
+                gameMode === 'comp' && players.length < 2 
+                  ? '경쟁 모드는 2인 이상' 
+                  : (allReady ? '게임 시작' : '모두 준비해야 시작 가능')
+              )}
             </button>
           ) : (
             <button
