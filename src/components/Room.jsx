@@ -862,6 +862,18 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
       </div>
     );
     
+    const gameScreenContent = gameMode === 'comp' ? (
+      <div className="game-screen-wrapper" style={{ display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+        <OpponentsBoard 
+          players={players} 
+          myId={webrtcRef.current?.clientId || 'solo-player'} 
+          opponentsState={opponentsState} 
+          initialBoard={boardData} 
+        />
+        {coreGameScreen}
+      </div>
+    ) : coreGameScreen;
+
     return gameScreenContent;
   }
 
