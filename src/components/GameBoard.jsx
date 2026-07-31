@@ -45,6 +45,10 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
   useEffect(() => {
     if (board.every(a => !a.removed)) {
       poppedApplesRef.current.clear(); // Reset on new game
+      setIsDragging(false);
+      setSelectionRect(null);
+      setCurrentSelection([]);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     }
 
     if (isInitialMountRef.current) {
@@ -139,6 +143,15 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [size]);
+
+  useEffect(() => {
+    if (isGameOver) {
+      setIsDragging(false);
+      setSelectionRect(null);
+      setCurrentSelection([]);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    }
+  }, [isGameOver]);
 
   const handleMouseDown = (e) => {
     if (isGameOver || isSpectator || !boardRef.current) return;
