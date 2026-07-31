@@ -845,6 +845,15 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           </div>
           <div className="game-header-info">
             <div className="game-status-badge">참가자: {players.length}명 | {isHost ? '방장' : '게스트'}</div>
+            {gameMode === 'solo' && (
+              <button 
+                className="leave-btn" 
+                style={{ backgroundColor: '#ff9f43', borderBottomColor: '#e67e22', display: 'inline-flex', alignItems: 'center', gap: '5px', marginRight: '10px' }}
+                onClick={startGame}
+              >
+                <span>🔄</span> 리셋
+              </button>
+            )}
             {players.length === 1 && (
               <button
                 className="leave-btn"
@@ -895,17 +904,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           );
         })()}
 
-        {gameMode === 'solo' && !isGameOver && (
-          <div className="solo-reset-container" style={{ textAlign: 'center', marginTop: '15px', position: 'relative', zIndex: 10 }}>
-            <button 
-              className="leave-btn" 
-              style={{ backgroundColor: '#ff9f43', borderBottomColor: '#e67e22', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-              onClick={startGame}
-            >
-              <span>🔄</span> 게임판 리셋
-            </button>
-          </div>
-        )}
+
 
         {isGameOver && (
           <GameOverModal
