@@ -895,6 +895,18 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           );
         })()}
 
+        {gameMode === 'solo' && !isGameOver && (
+          <div className="solo-reset-container" style={{ textAlign: 'center', marginTop: '15px', position: 'relative', zIndex: 10 }}>
+            <button 
+              className="leave-btn" 
+              style={{ backgroundColor: '#ff9f43', borderBottomColor: '#e67e22', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              onClick={startGame}
+            >
+              <span>🔄</span> 게임판 리셋
+            </button>
+          </div>
+        )}
+
         {isGameOver && (
           <GameOverModal
             score={score}
