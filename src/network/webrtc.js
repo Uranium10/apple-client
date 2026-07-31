@@ -2,15 +2,6 @@
 // Handles Signaling (WebSocket) and P2P (WebRTC DataChannel)
 // Hybrid approach: critical game messages sent via BOTH P2P and WS relay for reliability
 
-const ICE_SERVERS = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-  ],
-};
-
 // Max number of recent message IDs to remember for deduplication
 const DEDUP_CACHE_SIZE = 200;
 
@@ -62,8 +53,22 @@ export class WebRTCManager {
     return false;
   }
 
-  connect(roomId, isHost = false, gameMode = 'coop') {
+  async connect(roomId, isHost = false, gameMode = 'coop') {
     this.roomId = roomId;
+
+    try {
+      const response = await fetch(`${this.serverUrl}/api/turn-credentials`);
+      if (response.ok) {
+        this.iceServers = await response.json();
+      } else {
+        console.warn('[TURN] Failed to fetch credentials, falling back to STUN');
+        this.iceServers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+      }
+    } catch (e) {
+      console.warn('[TURN] Error fetching credentials, falling back to STUN:', e);
+      this.iceServers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    }
+
     this.ws = new WebSocket(`${this.serverUrl}/ws/${roomId}/${this.clientId}?name=${encodeURIComponent(this.clientName)}&isHost=${isHost}&gameMode=${gameMode}`);
 
     this.connectionTimeout = setTimeout(() => {
@@ -174,7 +179,7 @@ export class WebRTCManager {
   }
 
   createPeerConnection(peerId, isInitiator) {
-    const peer = new RTCPeerConnection(ICE_SERVERS);
+    const peer = new RTCPeerConnection(this.iceServers);
     this.peers[peerId] = peer;
 
     peer.onicecandidate = (event) => {
