@@ -702,7 +702,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         setPlayerScores(newScores);
 
         if (webrtcRef.current) {
-          webrtcRef.current.broadcast({
+          webrtcRef.current.broadcastReliable({
             type: 'APPLES_REMOVED',
             removedIds,
             points,
@@ -711,9 +711,9 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
           });
         }
       } else {
-        // Client sends request to host via P2P
+        // Client sends request to host
         if (webrtcRef.current) {
-          webrtcRef.current.broadcast({
+          webrtcRef.current.broadcastReliable({
             type: 'REQUEST_REMOVE',
             removedIds,
             points,
@@ -749,7 +749,7 @@ const Room = ({ roomId, isHost: initialIsHost, clientName, serverUrl, apiServerU
         });
 
         if (webrtcRef.current) {
-          webrtcRef.current.broadcast({
+          webrtcRef.current.broadcastReliable({
             type: 'APPLES_REMOVED',
             removedIds,
             points,
