@@ -362,7 +362,7 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
           onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
           onPointerDown={e => e.stopPropagation()}
         >
-          🔄
+          <img src="/reset.png" alt="Reset" style={{ width: '24px', height: '24px', pointerEvents: 'none' }} />
         </button>
       )}
       <div className="game-board-container">
