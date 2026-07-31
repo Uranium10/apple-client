@@ -19,7 +19,7 @@ const Apple = memo(({ id, number, removed, isSelected, myColor }) => (
   </div>
 ));
 
-const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, score, timeRemaining, totalTime, myColor = 'red', isSpectator = false, cursorDataRef, getPlayerColor, hideCursors = false }) => {
+const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, score, timeRemaining, totalTime, myColor = 'red', isSpectator = false, cursorDataRef, getPlayerColor, hideCursors = false, onSoloReset }) => {
   const [localBoard, setLocalBoard] = useState(board);
   const [isDragging, setIsDragging] = useState(false);
   const [selectionRect, setSelectionRect] = useState(null);
@@ -332,6 +332,39 @@ const GameBoard = ({ board, size, onApplesRemoved, sendCursorData, isGameOver, s
         handleMouseUp(e);
       }}
     >
+      {onSoloReset && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onSoloReset();
+          }}
+          title="게임판 리셋"
+          style={{
+            position: 'absolute',
+            top: '10px',
+            left: '10px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            backgroundColor: '#3498db',
+            color: 'white',
+            border: 'none',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            zIndex: 1000,
+            transition: 'transform 0.2s'
+          }}
+          onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'}
+          onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+          onPointerDown={e => e.stopPropagation()}
+        >
+          🔄
+        </button>
+      )}
       <div className="game-board-container">
         <div style={{ width: boardWidth * boardScale, height: boardHeight * boardScale }}>
           <div 
